@@ -6,7 +6,7 @@
 
 | 模块 | 当前能力 |
 |---|---|
-| 01 需求管理 | 文本需求、新增、筛选、CSV；已有独立测试结果追踪，状态修改待开发 |
+| 01 需求管理 | 文本需求、新增、筛选、CSV；已有独立测试结果追踪，状态修改已实现 |
 | 02 任务与轨道 | 规划，仅资料管理范围 |
 | 03 CAD | 文件索引、SHA-256 与变化检查；无 CAD 内核 |
 | 04 结构振动 | 规划，仅外部资料与结果管理范围 |
@@ -205,3 +205,14 @@ python workbench.py results trace --requirements requirements.csv --run-id RUN1 
 需求和问题表导出只允许新目标，拒绝覆盖数据库、已有文件、符号链接和硬链接。保留数据库自身的原子更新方式，不改变 CSV 表结构。新增 safe_export.py 和 test_safe_export.py。全部 82 项测试通过；新增测试同时覆盖两种数据库的源文件及链接保护和正常导出。
 
 导出新名称示例：python workbench.py requirements export requirements-copy.csv。目标已存在时需自行选择新名称。图形界面与硬件仍未实测。
+
+## v0.12.0 需求状态修改
+
+```
+python workbench.py requirements set-status --id R1 --status 已批准
+python workbench.py requirements set-status --id R1 --status 已验证 --verification "真实验证方法" --tests "T1;T2"
+```
+
+省略 --verification 或 --tests 保留原值；显式提供时替换对应字段。已验证状态仍必须满足原有依据和测试编号规则。状态只是用户登记，不自动确认测试通过。需求编号不区分大小写；未找到、非法状态、缺失依据均拒绝，写入失败保留旧文件。其他需求、来源和描述不变。
+
+新增 test_requirement_status.py，全部 90 项测试通过。CLI 已由现有 workbench requirements 路由支持，无需更改入口。桌面与硬件未实测。

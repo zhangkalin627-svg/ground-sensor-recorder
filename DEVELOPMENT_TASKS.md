@@ -267,3 +267,15 @@ python workbench.py configuration compare --left-id A1 --left-version 1 --right-
 只读比较名称、型号、变更原因及直接子项，向终端输出 JSON，不展开下层 BOM。区分新增、删除、版本集合变化、相同版本的数量变化及编号大小写变化。相同零件存在多个子版本时完整列出前后版本集合，不推断替换对应关系。任一根版本缺失则拒绝。identical_content 表示所比较内容相同，不表示版本号相同或整个递归装配等价。
 
 新增 test_configuration_compare.py；全部 99 项测试通过。数据库未被修改。Windows、图形界面与真实硬件仍未实测。
+
+## v0.15.0 离线 HTML 汇总报告
+
+```
+python workbench.py report --requirements requirements.csv --issues issues.csv --configuration configuration.json --documents documents.json --output summary.html
+```
+
+四类输入可按需选择，至少一类；明确指定却不存在或损坏的文件报错，不当成空表。生成自包含静态 HTML，显示数量、登记状态与摘要。所有用户文本转义，无 JavaScript、远程资源或设备控制。输出必须是新文件，禁止覆盖输入及已有文件（含链接）。
+
+报告只展示已登记资料，不重新核对文件哈希、证据真实性或测试实际执行。HTML 内包含输入路径和登记文本，分享前自行核对内容。它是离线报告，不是统一交互式图形界面。
+
+新增 summary_report.py、test_summary_report.py，workbench 增加 report 命令。全部 103 项测试通过，覆盖 HTML 转义、四类数据、空表、错误输入及输出保护。浏览器视觉效果、Windows、硬件未实测。

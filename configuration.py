@@ -1,4 +1,5 @@
 """Versioned generic instrument parts and assemblies, v0.6.0."""
+import strict_json
 import argparse
 import copy
 import json
@@ -23,6 +24,7 @@ def key(part,version):
 def validate(data):
     if not isinstance(data,dict) or set(data)!={'schema_version','parts'} or data['schema_version']!=1 or not isinstance(data['parts'],list):
         raise ValueError('配置文件结构错误')
+    strict_json.schema(data['schema_version'])
     if len(data['parts'])>10000: raise ValueError('零件版本超过上限')
     index={}
     for p in data['parts']:
@@ -57,7 +59,7 @@ def validate(data):
 
 def load(path):
     if not Path(path).exists(): return {'schema_version':1,'parts':[]}
-    with open(path,encoding='utf-8') as f: data=json.load(f)
+    with open(path,encoding='utf-8') as f: data=strict_json.read(f)
     validate(data)
     return data
 

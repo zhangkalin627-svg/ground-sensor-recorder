@@ -1,4 +1,4 @@
-# 地面实验工具 v0.4.0
+# 地面实验工具 v0.5.0
 这是通用地面实验数据软件。本版使用合成的桌面运动数据，不是火箭飞控或 GNC，没有制导、姿态解算、导航、点火或执行机构控制功能。
 ## 启动
 安装带 Tk 支持的 Python 3.10 或更高版本。Windows 安装 Python 时保留 Tcl/Tk 选项。在本目录运行：
@@ -34,7 +34,7 @@ python -m unittest -v
 ## 平台研发方向
 按“一个平台、多个模块”逐步演进。完整的 15 个模块方向、第一代范围、验收要求和当前状态见 [研发路线图](ROADMAP.md)。当前仅地面记录器部分实现，其他规划不代表已经完成。
 ## 继续开发入口
-接手开发先读 [下次开发任务](NEXT_DEVELOPMENT.md)，再按 [15 模块具体开发清单](DEVELOPMENT_TASKS.md) 执行。第 13 模块已新增离线 CSV 分析，第 01 模块已新增命令行需求管理；下一轮优先第 14 模块可靠性与故障管理。
+接手开发先读 [下次开发任务](NEXT_DEVELOPMENT.md)，再按 [15 模块具体开发清单](DEVELOPMENT_TASKS.md) 执行。第 13 模块已新增离线 CSV 分析，第 01 模块已新增命令行需求管理；第 14 模块已有问题管理；下一轮优先第 12 模块配置管理。
 ## v0.3.0 离线分析
 记录器仍为 v0.2.0，本次新增独立命令行分析工具，无第三方依赖。
 单文件分析：
@@ -65,3 +65,20 @@ python requirements.py export out.csv --status 已批准
 - 导入文件表头含未知列、缺少必填列、字段数过多时被拒绝，不静默丢弃信息。
 验证：test_requirements.py 的 22 项测试在交付沙箱通过，覆盖重复编号、缺失字段、非法状态、导入失败保护、导出再导入一致、状态筛选和命令行返回码。test_recorder.py、test_analysis.py 本轮未重新运行；桌面界面与真实硬件仍未实测。
 限制：关联测试编号只检查格式，不检查是否真实存在；“已验证”仅表示填写了依据，工具不会自动核实测试结果。
+
+## v0.5.0 合并验证记录（2026-10-20）
+
+保留仓库现有 issues.py / test_issues.py 实现，不覆盖为另一种问题表格式。全部新旧测试合并运行 63 项通过，命令为 python -m unittest discover -s platform-v0.5.0 -q（交付测试目录）。仓库根目录可运行 python -m unittest -v。真实硬件与桌面界面仍未实测。
+
+第 14 模块支持编号、标题、现象、推测原因、处理说明、状态、需求和测试关联、复测依据、CSV 导入导出。验证关闭须填写复测依据与测试编号；依据为文本，不自动认证复测附件和执行结果。
+
+使用现有接口：
+
+```
+python issues.py add --id ISS-001 --title "数据中断" --symptom "曲线停止" --cause "未确认"
+python issues.py set-status --id ISS-001 --status 已处理待复测 --resolution "处理记录"
+python issues.py set-status --id ISS-001 --status 验证关闭 --retest "复测记录 R1" --tests T-1
+python issues.py --reqs requirements.csv check
+```
+
+需求存在性校验只检查编号，不验证需求内容。未配置需求表时显示未校验提示。附件校验和变更历史待后续完善。下一轮优先第 12 模块配置管理。

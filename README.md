@@ -119,3 +119,15 @@ python workbench.py analyze samples.csv --expected-interval 0.05 --gap-factor 1.
 各通道新增 first_minimum_t_s、first_maximum_t_s，极值重复时只报告第一次。保留现有统计和 JSON schema_version=1，工具版本为 0.17.0。输入不修改，输出防覆盖沿用。
 
 本轮未接入记录器适配器，Windows、桌面窗口与真实硬件仍未实测。
+
+## v0.16.0 到 v0.18.0 新增的独立脚本（文档 v0.18.1）
+
+以下脚本尚未接入 workbench.py，需单独运行。详细说明、限制和两套缺口定义的对比见 [TOOLS_V0_16_TO_V0_18.md](TOOLS_V0_16_TO_V0_18.md)。
+
+```
+python replay_session.py input.txt --out sessions
+python channel_report.py samples.csv --json report.json
+python recorder_lines.py
+```
+
+replay_session.py 只读导入文本行日志，坏行记入 anomalies.csv。channel_report.py 按通道输出采样间隔、缺口（间隔中位数的 5 倍）、极值与均值；它的缺口定义与 workbench.py analyze 的 --expected-interval 不同。recorder_lines.py 是带导入按钮的记录器窗口，需 Tk。管家在云服务器上对提交 3909986 运行 128 项测试通过；Tk 窗口、Windows 与硬件未实测。

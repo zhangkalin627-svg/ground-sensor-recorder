@@ -2,6 +2,7 @@
 import argparse
 from collections import Counter
 from datetime import datetime
+from hashlib import sha256
 from html import escape
 from pathlib import Path
 import sys
@@ -9,17 +10,25 @@ import requirements
 import issues
 import configuration
 import documents_index
-
+VERSION='v0.16.0'
 def table(headers,rows):
     head=''.join('<th>'+escape(str(h))+'</th>' for h in headers)
     body=''.join('<tr>'+''.join('<td>'+escape(str(v))+'</td>' for v in row)+'</tr>' for row in rows)
     return '<div class="scroll"><table><thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody></table></div>' if body else '<p>空表：0 条记录</p>'
-
+def fingerprint(path):
+    """Byte size and SHA-256 of the input file as it is right now."""
+    data=Path(path).read_bytes()
+    return len(data),sha256(data).hexdigest()
 def build(selected):
     if not selected: raise ValueError('至少指定一个输入文件')
-    sections=[]
     for kind,path in selected.items():
         if not Path(path).is_file(): raise ValueError(f'输入文件不存在：{path}')
+    # Snapshot every input before parsing, compare again after parsing, so the
+    # page never mixes two versions of one file.
+    before={}
+    for kind,path in selected.items(): before[kind]=(fingerprint(path),datetime.now().astimezone().isoformat(timespec='seconds'))
+    sections=[]
+    for kind,path in selected.items():
         if kind=='requirements':
             records=requirements.read_csv(path)
             rows=[(r.req_id,r.description,r.status,r.source,';'.join(r.test_ids)) for r in records]
@@ -37,14 +46,19 @@ def build(selected):
             rows=[(r['id'],r['version'],r['title'],r['source'],r['path'],r['sha256']) for r in records]
             headers=('资料编号','版本','标题','来源','登记路径','登记 SHA-256')
         else: raise ValueError('未知资料种类')
+        (size,digest),stamp=before[kind]
         states=Counter(r.status for r in records) if kind in ('requirements','issues') else None
         extra='' if states is None else '<p>状态汇总：'+escape('；'.join(f'{k} {v}' for k,v in sorted(states.items())))+'</p>'
-        sections.append('<section><h2>'+escape(kind)+f' · {len(records)} 条</h2><p class="source">输入：'+escape(str(Path(path).absolute()))+'</p>'+extra+table(headers,rows)+'</section>')
+        trace=f'<p class="source">输入快照：{size} 字节 · SHA-256 '+escape(digest)+' · 读取时刻 '+escape(stamp)+'（文件快照，不是实时状态）</p>'
+        sections.append('<section><h2>'+escape(kind)+f' · {len(records)} 条</h2><p class="source">输入：'+escape(str(Path(path).absolute()))+'</p>'+trace+extra+table(headers,rows)+'</section>')
+    for kind,path in selected.items():
+        try: now=fingerprint(path)
+        except OSError as e: raise ValueError(f'输入文件在生成期间不可读：{path}（{e}）') from e
+        if now!=before[kind][0]: raise ValueError(f'输入文件在生成期间发生变化，拒绝输出：{path}')
     return '''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
-<title>地面工程记录汇总</title><style>body{font:16px system-ui,sans-serif;background:#f3f6fa;color:#1b2b40;margin:24px auto;max-width:1250px;padding:0 20px}section{background:white;padding:20px;border-radius:12px;margin:20px 0}.scroll{overflow:auto}table{border-collapse:collapse;width:100%}th,td{border:1px solid #dce3ec;padding:10px;text-align:left;vertical-align:top;white-space:pre-wrap;overflow-wrap:anywhere}th{background:#eaf1f8}.source{color:#51647a;overflow-wrap:anywhere}</style></head><body><h1>地面工程记录汇总</h1><p>v0.15.0 · 生成时间：'''+escape(datetime.now().astimezone().isoformat(timespec='seconds'))+'''</p><p>离线静态报告，仅展示登记内容。登记状态与复测依据未经自动认证；资料哈希未在本报告中重新核对。本工具不提供专业求解或设备控制。</p>'''+''.join(sections)+'</body></html>'
-
+<title>地面工程记录汇总</title><style>body{font:16px system-ui,sans-serif;background:#f3f6fa;color:#1b2b40;margin:24px auto;max-width:1250px;padding:0 20px}section{background:white;padding:20px;border-radius:12px;margin:20px 0}.scroll{overflow:auto}table{border-collapse:collapse;width:100%}th,td{border:1px solid #dce3ec;padding:10px;text-align:left;vertical-align:top;white-space:pre-wrap;overflow-wrap:anywhere}th{background:#eaf1f8}.source{color:#51647a;overflow-wrap:anywhere}</style></head><body><h1>地面工程记录汇总</h1><p>'''+VERSION+''' · 生成时间：'''+escape(datetime.now().astimezone().isoformat(timespec='seconds'))+'''</p><p>离线静态报告，仅展示登记内容，是生成时刻的输入快照。登记状态与复测依据未经自动认证；资料哈希未在本报告中重新核对（上方 SHA-256 是输入文件本身的哈希）。本工具不提供专业求解或设备控制。</p>'''+''.join(sections)+'</body></html>'
 def write(output,selected):
     target=Path(output)
     for source in selected.values():
@@ -52,9 +66,8 @@ def write(output,selected):
             raise ValueError('输出不能覆盖输入文件')
     html=build(selected)
     with target.open('x',encoding='utf-8') as f: f.write(html)
-
 def main(argv=None):
-    p=argparse.ArgumentParser(description='离线只读 HTML 记录汇总 v0.15.0')
+    p=argparse.ArgumentParser(description='离线只读 HTML 记录汇总 '+VERSION)
     for kind in ('requirements','issues','configuration','documents'): p.add_argument('--'+kind)
     p.add_argument('--output',required=True)
     ns=p.parse_args(argv)
@@ -63,5 +76,4 @@ def main(argv=None):
     except (ValueError,OSError,UnicodeError) as e:
         print(f'报告生成失败：{e}',file=sys.stderr); return 2
     return 0
-
 if __name__=='__main__': raise SystemExit(main())

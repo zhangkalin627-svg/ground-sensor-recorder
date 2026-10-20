@@ -216,3 +216,16 @@ python workbench.py requirements set-status --id R1 --status 已验证 --verific
 省略 --verification 或 --tests 保留原值；显式提供时替换对应字段。已验证状态仍必须满足原有依据和测试编号规则。状态只是用户登记，不自动确认测试通过。需求编号不区分大小写；未找到、非法状态、缺失依据均拒绝，写入失败保留旧文件。其他需求、来源和描述不变。
 
 新增 test_requirement_status.py，全部 90 项测试通过。CLI 已由现有 workbench requirements 路由支持，无需更改入口。桌面与硬件未实测。
+
+## v0.13.0 资料路径迁移
+
+```
+python workbench.py documents migrate --old-root /old/data --new-root /new/data
+python workbench.py documents migrate --old-root /old/data --new-root /new/data --apply
+```
+
+默认仅预览，显示匹配数量、新旧路径及失败原因。--apply 在所有匹配项校验成功后原子更新索引。新文件必须存在、位于新根目录内且 SHA-256 与登记值一致。按路径层级匹配旧目录，避免 old 错配 older；旧目录可以已经不存在。任一匹配项失败则不写入。无匹配时不写入。
+
+该功能不复制、移动、上传或修改资料文件，不扫描索引以外的用户目录。仅适用于当前系统可解析的本地路径；跨操作系统路径转换尚未实现。验证后到写入之间仍需保持资料文件不被其他程序改动，当前无多进程文件锁。
+
+全部 95 项测试通过，新增 5 项覆盖预览与应用、缺失旧目录、前缀边界、缺失和哈希差异、符号链接越界及失败写入保护。Windows、图形窗口、真实硬件未实测。

@@ -1,0 +1,5 @@
+req_id,description,source,status,verification_method,test_ids
+GSR-001,适配器只读取样本，不提供写入、发命令或控制输出的接口,ADAPTERS.md,已实现,,
+GSR-002,适配器遇到坏行（字段数不对、非数字、时间不递增、过长）时记入异常日志并跳过，不中断采集,ADAPTERS.md,已实现,,test_adapters.AdapterTests.test_bad_lines_logged_not_raised
+GSR-003,离线分析不得修改原始记录文件,DEVELOPMENT_TASKS.md 第 13 模块验收标准,草案,,
+GSR-004,示例：来源尚未确认的需求必须显示“未知”而不是被省略,未知,草案,,

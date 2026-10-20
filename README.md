@@ -1,4 +1,4 @@
-# 地面实验工具 v0.15.0
+# 地面实验工具 v0.17.0
 
 一个逐步增加模块的通用地面实验与工程记录工具集。当前提供命令行入口及独立的模拟记录器，使用 Python 标准库；Python 3.10+，记录器需 Tk 与图形桌面。
 
@@ -105,3 +105,17 @@ python workbench.py report --requirements requirements.csv --issues issues.csv -
 报告只展示已登记资料，不重新核对文件哈希、证据真实性或测试实际执行。HTML 内包含输入路径和登记文本，分享前自行核对内容。它是离线报告，不是统一交互式图形界面。
 
 新增 summary_report.py、test_summary_report.py，workbench 增加 report 命令。全部 103 项测试通过，覆盖 HTML 转义、四类数据、空表、错误输入及输出保护。浏览器视觉效果、Windows、硬件未实测。
+
+## v0.17.0 采样缺口与极值时间
+
+基于 GitHub 最新 v0.16.0 继续研发。先从远端获取当前源码和测试，原全套 107 项通过；新增后共 110 项测试通过。统一入口 workbench.py report 已使用 example_requirements.csv 成功生成 HTML，浏览器视觉效果未实测。
+
+```
+python workbench.py analyze samples.csv --expected-interval 0.05 --gap-factor 1.5 --output analysis-new.json
+```
+
+--expected-interval 为用户明确提供的采样周期（秒），缺口判断为实际间隔严格大于周期乘倍数；默认倍数 1.5。未指定周期时 gaps.assessed=false、count=null，不自行推断采样周期。结果列出超阈值间隔的起止时间，不估算丢失样本数。两文件比较时相同参数用于两份文件，周期不同应分别分析。
+
+各通道新增 first_minimum_t_s、first_maximum_t_s，极值重复时只报告第一次。保留现有统计和 JSON schema_version=1，工具版本为 0.17.0。输入不修改，输出防覆盖沿用。
+
+本轮未接入记录器适配器，Windows、桌面窗口与真实硬件仍未实测。

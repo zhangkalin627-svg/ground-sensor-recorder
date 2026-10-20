@@ -1,16 +1,16 @@
 # 下次开发从这里开始
 
-当前 v0.17.0，基于 GitHub v0.16.0 升级。已从远端获取并合并运行全套测试：v0.16.0 原 107 项通过，v0.17.0 共 110 项通过。workbench report 用示例需求表成功生成 HTML。浏览器视觉效果、Windows、桌面和硬件未实测。
+当前 v0.18.1（仅文档）。代码状态：analysis.py 为 0.17.0，channel_report.py 为 0.18.0。管家在云服务器上对提交 3909986 运行 128 项测试全部通过。Tk 窗口、Windows 和真实硬件未实测。
 
-## 当前新增
-analysis.py 支持显式采样周期与缺口阈值，报告过长间隔及极值首次时间。未指定周期则不判断缺口。summary_report.py 保留 v0.16.0 的文件大小、SHA-256、时间及前后变化检查。
+## 已完成
+- v0.16.0：summary_report.py 记录输入文件大小、SHA-256、读取时刻并做前后比对；test_report_traceability.py。
+- v0.17.0：analysis.py 支持 --expected-interval 与 --gap-factor，报告每通道首次极值时间；replay_session.py（文本行日志只读导入）、recorder_lines.py（记录器导入按钮）及测试。原计划的“通用只读文本流采集”已由 replay_session.py 完成。
+- v0.18.0：channel_report.py（按通道统计与缺口，中位数 5 倍法）及测试。
+- v0.18.1：用法说明见 TOOLS_V0_16_TO_V0_18.md，含两套缺口定义的对比。
 
-## 下一轮 v0.18.0：通用只读文本流采集
-1. 获取最新代码与 adapters.py/ADAPTERS.md，先运行全套测试。
-2. 先开发独立文件流采集命令，不直接修改 Tk 记录器；读取用户明确指定的本地文本文件，通过已有 LineAdapter 校验。
-3. 按已有适配器格式保存样本、异常日志和设备身份。标记为文件输入，不伪装成真实仪器实时采集。
-4. 禁止覆盖输入或已有输出，处理畸形行及 I/O 失败并保留可核对结果。
-5. 使用通用模拟文件测试，不添加设备写入和控制。
-6. 全套通过后同步 GitHub 并核对。图形集成需另行实测。
+## 下一轮候选
+1. 统一缺口定义：channel_report.py 增加 --expected-interval 与 --gap-factor，与 analysis.py 一致；不给周期时保留中位数法并在输出中标明所用方法。改 channel_report.py、test_channel_report.py、TOOLS_V0_16_TO_V0_18.md。
+2. 把 channel_report.py 和 replay_session.py 接入 workbench.py 子命令。需先读 workbench.py 的带缩进原文。
+3. 记录器窗口直接读取 recorder_lines.py 的导入结果并显示异常行数。需要在有桌面的电脑上实测。
 
 保留：浏览器视觉验收、附件核验、多进程协调和跨系统路径转换。专业领域维持既定资料管理范围。

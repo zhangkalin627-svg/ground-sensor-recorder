@@ -178,6 +178,29 @@ class RequirementStore:
             return []
         return read_csv(self.path)
 
+    def set_status(self, req_id, status, verification_method=None, test_ids=None):
+        existing = self.load()
+        for pos, req in enumerate(existing):
+            if req.req_id.casefold() == req_id.casefold():
+                break
+        else:
+            raise RequirementError([f'找不到需求 {req_id}'])
+        row = req.as_row()
+        row['status'] = status
+        if verification_method is not None:
+            row['verification_method'] = verification_method
+        if test_ids is not None:
+            row['test_ids'] = test_ids
+        updated, problems = check_row(row, f'需求 {req.req_id}')
+        if problems:
+            raise RequirementError(problems)
+        existing[pos] = updated
+        try:
+            write_csv(self.path, existing)
+        except OSError as e:
+            raise RequirementError([f'无法更新需求：{e}']) from e
+        return updated
+
     def add(self, **fields):
         existing = self.load()
         new = parse_rows([fields], existing, label='新增')
@@ -238,6 +261,11 @@ def main(argv=None, out=None, err=None):
     a.add_argument('--tests', default='', help='用分号分隔的测试编号')
     l = sub.add_parser('list')
     l.add_argument('--status')
+    s = sub.add_parser('set-status')
+    s.add_argument('--id', required=True)
+    s.add_argument('--status', required=True)
+    s.add_argument('--verification', default=None)
+    s.add_argument('--tests', default=None, help='替换关联测试编号；省略则保留原值')
     i = sub.add_parser('import')
     i.add_argument('file')
     e = sub.add_parser('export')
@@ -258,6 +286,9 @@ def main(argv=None, out=None, err=None):
             reqs = filter_status(store.load(), ns.status)
             print(_format(reqs), file=out)
             print(f'共 {len(reqs)} 条', file=out)
+        elif ns.cmd == 'set-status':
+            r = store.set_status(ns.id, ns.status, ns.verification, ns.tests)
+            print(f'{r.req_id} 状态已改为 {r.status}（依据为登记文本，未自动核实执行）', file=out)
         elif ns.cmd == 'import':
             n = store.import_csv(ns.file)
             print(f'已导入 {n} 条', file=out)

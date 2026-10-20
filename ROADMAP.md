@@ -94,4 +94,21 @@
 - 模拟结果、外部报告和真实测试结果分别标识。
 - 后续开发须沿用本路线图的范围；变更范围时先更新说明。
 ## 继续开发入口
-接手开发先读 [下次开发任务](NEXT_DEVELOPMENT.md)，再按 [15 模块具体开发清单](DEVELOPMENT_TASKS.md) 执行。第 13 模块已新增离线分析，第 01 模块已新增命令行需求管理；下一轮优先第 14 模块可靠性与故障管理。
+接手开发先读 [下次开发任务](NEXT_DEVELOPMENT.md)，再按 [15 模块具体开发清单](DEVELOPMENT_TASKS.md) 执行。第 13 模块已新增离线分析，第 01 模块已新增命令行需求管理；第 14 模块已有问题管理；下一轮优先第 12 模块配置管理。
+
+## v0.5.0 合并验证记录（2026-10-20）
+
+保留仓库现有 issues.py / test_issues.py 实现，不覆盖为另一种问题表格式。全部新旧测试合并运行 63 项通过，命令为 python -m unittest discover -s platform-v0.5.0 -q（交付测试目录）。仓库根目录可运行 python -m unittest -v。真实硬件与桌面界面仍未实测。
+
+第 14 模块支持编号、标题、现象、推测原因、处理说明、状态、需求和测试关联、复测依据、CSV 导入导出。验证关闭须填写复测依据与测试编号；依据为文本，不自动认证复测附件和执行结果。
+
+使用现有接口：
+
+```
+python issues.py add --id ISS-001 --title "数据中断" --symptom "曲线停止" --cause "未确认"
+python issues.py set-status --id ISS-001 --status 已处理待复测 --resolution "处理记录"
+python issues.py set-status --id ISS-001 --status 验证关闭 --retest "复测记录 R1" --tests T-1
+python issues.py --reqs requirements.csv check
+```
+
+需求存在性校验只检查编号，不验证需求内容。未配置需求表时显示未校验提示。附件校验和变更历史待后续完善。下一轮优先第 12 模块配置管理。

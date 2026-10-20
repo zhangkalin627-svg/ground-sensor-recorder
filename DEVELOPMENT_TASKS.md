@@ -144,3 +144,20 @@
 - 未验证：test_recorder.py 与 test_analysis.py 本轮未重新运行；全部新旧测试合并运行未做；需求表不检查关联测试编号是否真实存在；未在 Windows 桌面运行；真实硬件未接入。
 - 未实现：需求到测试结果的追踪报告、接口管理、修改既有需求状态的命令。
 - 下一轮任务：第 14 模块可靠性与故障管理，详见 NEXT_DEVELOPMENT.md。
+
+## v0.5.0 合并验证记录（2026-10-20）
+
+保留仓库现有 issues.py / test_issues.py 实现，不覆盖为另一种问题表格式。全部新旧测试合并运行 63 项通过，命令为 python -m unittest discover -s platform-v0.5.0 -q（交付测试目录）。仓库根目录可运行 python -m unittest -v。真实硬件与桌面界面仍未实测。
+
+第 14 模块支持编号、标题、现象、推测原因、处理说明、状态、需求和测试关联、复测依据、CSV 导入导出。验证关闭须填写复测依据与测试编号；依据为文本，不自动认证复测附件和执行结果。
+
+使用现有接口：
+
+```
+python issues.py add --id ISS-001 --title "数据中断" --symptom "曲线停止" --cause "未确认"
+python issues.py set-status --id ISS-001 --status 已处理待复测 --resolution "处理记录"
+python issues.py set-status --id ISS-001 --status 验证关闭 --retest "复测记录 R1" --tests T-1
+python issues.py --reqs requirements.csv check
+```
+
+需求存在性校验只检查编号，不验证需求内容。未配置需求表时显示未校验提示。附件校验和变更历史待后续完善。下一轮优先第 12 模块配置管理。

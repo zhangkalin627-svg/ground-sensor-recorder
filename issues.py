@@ -4,6 +4,7 @@ Keeps a plain-text issue table (issues.csv) for the ground data tools.
 It stores and checks text records only; it never touches devices and it is
 not a safety or reliability certification.
 """
+from safe_export import export_new
 import argparse
 import csv
 import os
@@ -281,7 +282,10 @@ class IssueStore:
 
     def export_csv(self, dest, status=None):
         chosen = filter_status(self.load(), status)
-        write_csv(dest, chosen)
+        try:
+            export_new(dest, self.path, FIELDS, chosen)
+        except (OSError, ValueError) as e:
+            raise IssueError([f"无法导出：{e}"] ) from e
         return len(chosen)
 
 

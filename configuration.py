@@ -98,6 +98,37 @@ def snapshot(path,part_id,version,output):
     with target.open('x',encoding='utf-8') as f: f.write(encoded)
     return result
 
+def compare(path, left_id, left_version, right_id, right_version):
+    index=validate(load(path))
+    left_key=key(left_id,left_version); right_key=key(right_id,right_version)
+    if left_key not in index or right_key not in index: raise ValueError('比较的零件版本不存在')
+    left,right=index[left_key],index[right_key]
+    attributes={field:dict(before=left[field],after=right[field])
+                for field in ('name','model','reason') if left[field]!=right[field]}
+    # Group by part id: multiple versions of the same child remain explicit,
+    # without inventing a one-to-one replacement correspondence.
+    def groups(part):
+        result={}
+        for child in part['children']:
+            result.setdefault(child['id'].casefold(),{})[child['version'].casefold()]=child
+        return result
+    a,b=groups(left),groups(right); changes=[]
+    for part_id in sorted(a.keys()|b.keys()):
+        before=a.get(part_id,{}); after=b.get(part_id,{})
+        if before==after: continue
+        flags=[]
+        if not before: flags.append('新增')
+        elif not after: flags.append('删除')
+        else:
+            if before.keys()!=after.keys(): flags.append('版本集合变化')
+            if any(before[v]['quantity']!=after[v]['quantity'] for v in before.keys()&after.keys()): flags.append('数量变化')
+            if not flags: flags.append('编号大小写变化')
+        changes.append(dict(part_id=part_id,changes=flags,
+                            before=[before[v] for v in sorted(before)],after=[after[v] for v in sorted(after)]))
+    return dict(left=dict(id=left['id'],version=left['version']),right=dict(id=right['id'],version=right['version']),
+                scope='仅根属性及直接子项，不展开下层 BOM，不推断版本替换对应关系',
+                identical_content=not attributes and not changes,attributes=attributes,children=changes)
+
 def main(argv=None):
     p=argparse.ArgumentParser(description='通用地面仪器零件配置管理 v0.6.0')
     p.add_argument('--db',default='configuration.json')
@@ -109,6 +140,8 @@ def main(argv=None):
     sub.add_parser('list')
     s=sub.add_parser('snapshot')
     s.add_argument('--id',required=True); s.add_argument('--version',required=True); s.add_argument('--output',required=True)
+    diff=sub.add_parser('compare')
+    for option in ('left-id','left-version','right-id','right-version'): diff.add_argument('--'+option,required=True)
     ns=p.parse_args(argv)
     try:
         if ns.command=='add':
@@ -118,6 +151,7 @@ def main(argv=None):
                 children.append(dict(id=part,version=version,quantity=int(quantity)))
             add(ns.db,ns.id,ns.version,ns.name,ns.reason,ns.model,children)
         elif ns.command=='snapshot': snapshot(ns.db,ns.id,ns.version,ns.output)
+        elif ns.command=='compare': print(json.dumps(compare(ns.db,ns.left_id,ns.left_version,ns.right_id,ns.right_version),ensure_ascii=False,indent=2))
         else: print(json.dumps(load(ns.db),ensure_ascii=False,indent=2))
     except (ValueError,OSError,UnicodeError) as e:
         print(f'操作失败：{e}',file=sys.stderr); return 2

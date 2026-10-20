@@ -112,3 +112,18 @@ python issues.py --reqs requirements.csv check
 ```
 
 需求存在性校验只检查编号，不验证需求内容。未配置需求表时显示未校验提示。附件校验和变更历史待后续完善。下一轮优先第 12 模块配置管理。
+
+## v0.6.0 配置管理（第 12 模块）
+
+新增 configuration.py 与 test_configuration.py，管理通用地面仪器的零件版本及装配关系。型号未知可留空，名称与变更原因必填。编号和版本组合不区分大小写且唯一；已登记版本不可原地覆盖，变更时新增版本。
+
+```
+python configuration.py add --id P1 --version 1 --name "实验零件" --reason "初次登记"
+python configuration.py add --id A1 --version 1 --name "地面实验装配" --reason "初次装配" --child P1@1:2
+python configuration.py list
+python configuration.py snapshot --id A1 --version 1 --output assembly-v1.json
+```
+
+默认数据库 configuration.json，使用全局 --db 指定其他路径。装配项必须引用已登记的零件版本，数量必须正整数，禁止重复子项和循环引用。快照复制根装配及其引用的全部零件版本，供独立复查；目标文件必须不存在。快照为报告格式，不作为数据库直接导入；无加工程序、物理模型或设备控制。
+
+全部新旧测试 69 项通过：在交付目录执行 python -m unittest discover -s platform-v0.6.0 -q；仓库根目录可执行 python -m unittest -v。新增 6 项覆盖重复和未知引用、非法数量、循环关系、快照固定版本及不覆盖、写入失败保护和 CLI。桌面界面与真实硬件仍未实测。本模块为第一代配置记录，尚无差异报告、文件哈希或用户权限管理。

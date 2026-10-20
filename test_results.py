@@ -1,4 +1,5 @@
 """User-declared ground software test evidence, not automatic certification."""
+import strict_json
 import argparse
 from datetime import datetime
 import json
@@ -12,7 +13,7 @@ STATES=('未运行','通过','失败')
 FIELDS={'run_id','test_id','status','executed_at','commit','evidence'}
 
 def validate(rows):
-    if not isinstance(rows,list): raise ValueError('测试记录须为列表')
+    strict_json.records(rows)
     seen=set()
     for row in rows:
         if not isinstance(row,dict) or set(row)!=FIELDS: raise ValueError('测试记录字段错误')
@@ -33,7 +34,7 @@ def validate(rows):
 
 def load(path):
     if not Path(path).exists(): return []
-    with open(path,encoding='utf-8') as f: return validate(json.load(f))
+    with open(path,encoding='utf-8') as f: return validate(strict_json.read(f))
 
 def add(path,record):
     rows=validate(load(path)+[record]); target=Path(path).absolute()

@@ -127,3 +127,18 @@ python configuration.py snapshot --id A1 --version 1 --output assembly-v1.json
 默认数据库 configuration.json，使用全局 --db 指定其他路径。装配项必须引用已登记的零件版本，数量必须正整数，禁止重复子项和循环引用。快照复制根装配及其引用的全部零件版本，供独立复查；目标文件必须不存在。快照为报告格式，不作为数据库直接导入；无加工程序、物理模型或设备控制。
 
 全部新旧测试 69 项通过：在交付目录执行 python -m unittest discover -s platform-v0.6.0 -q；仓库根目录可执行 python -m unittest -v。新增 6 项覆盖重复和未知引用、非法数量、循环关系、快照固定版本及不覆盖、写入失败保护和 CLI。桌面界面与真实硬件仍未实测。本模块为第一代配置记录，尚无差异报告、文件哈希或用户权限管理。
+
+## v0.7.0 资料索引（第 03 模块基础）
+
+新增 documents_index.py 和 test_documents_index.py。登记编号、版本、标题、来源、本地文件路径、SHA-256 及可选零件版本。未知来源须明确填“未知”。引用真实资料需依据用户提供的文件，不自动生成。
+
+```
+python documents_index.py add --id DOC-1 --version 1 --title "地面实验资料" --source 未知 --file local-file.txt
+python documents_index.py list
+python documents_index.py check
+python documents_index.py --configuration configuration.json check
+```
+
+默认索引 documents.json。文件路径记录为当前电脑绝对路径；换电脑需重新登记或后续迁移工具，当前不含上传、复制或路径迁移。check 显示一致、已变更、文件缺失或无法读取；零件关联显示无关联、未核对、存在或未知。给出配置表时拒绝登记未知零件版本。文件变化不会自动更新原哈希；应另登记资料版本。
+
+全部 73 项测试通过，新增 4 项覆盖哈希、文件变化和缺失、重复编号、零件引用及失败写入保护。该功能为资料管理，不是 CAD 建模；桌面和真实硬件仍未实测。

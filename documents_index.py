@@ -1,4 +1,5 @@
 """Read-only local document fingerprints for generic engineering records."""
+import strict_json
 import argparse
 import hashlib
 import json
@@ -18,9 +19,11 @@ def fingerprint(path):
 
 def load(path):
     if not Path(path).exists(): return {'schema_version':1,'documents':[]}
-    with open(path,encoding='utf-8') as f: data=json.load(f)
+    with open(path,encoding='utf-8') as f: data=strict_json.read(f)
     if not isinstance(data,dict) or set(data)!={'schema_version','documents'} or data['schema_version']!=1 or not isinstance(data['documents'],list):
         raise ValueError('资料索引格式错误')
+    strict_json.schema(data['schema_version'])
+    strict_json.records(data['documents'])
     seen=set()
     for row in data['documents']:
         if not isinstance(row,dict) or set(row)!=FIELDS: raise ValueError('资料字段错误')
@@ -36,7 +39,7 @@ def load(path):
 def part_status(row,configuration=None):
     if not row['part_id']: return '无关联'
     if configuration is None: return '未核对'
-    with open(configuration,encoding='utf-8') as f: data=json.load(f)
+    with open(configuration,encoding='utf-8') as f: data=strict_json.read(f)
     index=validate_configuration(data)
     return '存在' if key(row['part_id'],row['part_version']) in index else '未知'
 
@@ -51,6 +54,7 @@ def register(db,doc_id,version,title,source,path,part_id='',part_version='',conf
     row=dict(id=doc_id,version=version,title=text(title,'title'),source=text(source,'source'),
              path=str(path),sha256=fingerprint(path),part_id=part_id,part_version=part_version)
     if part_status(row,configuration)=='未知': raise ValueError('关联零件版本不存在')
+    if len(data['documents'])>=strict_json.MAX_RECORDS: raise ValueError('资料记录已达到 10000 条上限')
     data['documents'].append(row)
     target=Path(db).absolute(); fd,tmp=tempfile.mkstemp(dir=target.parent,prefix='.doc-index-')
     try:

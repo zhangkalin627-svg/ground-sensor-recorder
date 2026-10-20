@@ -1,4 +1,4 @@
-# 地面实验工具 v0.11.0
+# 地面实验工具 v0.12.0
 
 一个逐步增加模块的通用地面实验与工程记录工具集。当前提供命令行入口及独立的模拟记录器，使用 Python 标准库；Python 3.10+，记录器需 Tk 与图形桌面。
 
@@ -25,7 +25,7 @@ python -m unittest -v
 
 | 模块 | 当前能力 |
 |---|---|
-| 01 需求管理 | 文本需求、新增、筛选、CSV；已有独立测试结果追踪，状态修改待开发 |
+| 01 需求管理 | 文本需求、新增、筛选、CSV；已有独立测试结果追踪，状态修改已实现 |
 | 02 任务与轨道 | 规划，仅资料管理范围 |
 | 03 CAD | 文件索引、SHA-256 与变化检查；无 CAD 内核 |
 | 04 结构振动 | 规划，仅外部资料与结果管理范围 |
@@ -59,3 +59,14 @@ python -m unittest -v
 - [15 模块路线图](ROADMAP.md)
 - [具体开发任务](DEVELOPMENT_TASKS.md)
 - [截至 v0.10.0 的原首页与历史用法](HISTORY_THROUGH_V0_10.md)
+
+## v0.12.0 需求状态修改
+
+```
+python workbench.py requirements set-status --id R1 --status 已批准
+python workbench.py requirements set-status --id R1 --status 已验证 --verification "真实验证方法" --tests "T1;T2"
+```
+
+省略 --verification 或 --tests 保留原值；显式提供时替换对应字段。已验证状态仍必须满足原有依据和测试编号规则。状态只是用户登记，不自动确认测试通过。需求编号不区分大小写；未找到、非法状态、缺失依据均拒绝，写入失败保留旧文件。其他需求、来源和描述不变。
+
+新增 test_requirement_status.py，全部 90 项测试通过。CLI 已由现有 workbench requirements 路由支持，无需更改入口。桌面与硬件未实测。

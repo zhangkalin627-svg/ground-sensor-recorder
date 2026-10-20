@@ -233,3 +233,14 @@ python workbench.py results trace --requirements requirements.csv --run-id RUN1 
 ## v0.11.0 校验与整理
 
 配置、资料和测试结果增加共享严格 JSON 读取；拒绝重复字段、非有限数值、超过 16 MiB、错误版本与记录超限。全部 86 项测试通过。首页已整理，旧首页保存在 HISTORY_THROUGH_V0_10.md。
+
+## v0.12.0 需求状态修改
+
+```
+python workbench.py requirements set-status --id R1 --status 已批准
+python workbench.py requirements set-status --id R1 --status 已验证 --verification "真实验证方法" --tests "T1;T2"
+```
+
+省略 --verification 或 --tests 保留原值；显式提供时替换对应字段。已验证状态仍必须满足原有依据和测试编号规则。状态只是用户登记，不自动确认测试通过。需求编号不区分大小写；未找到、非法状态、缺失依据均拒绝，写入失败保留旧文件。其他需求、来源和描述不变。
+
+新增 test_requirement_status.py，全部 90 项测试通过。CLI 已由现有 workbench requirements 路由支持，无需更改入口。桌面与硬件未实测。

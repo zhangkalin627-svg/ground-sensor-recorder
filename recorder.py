@@ -1,12 +1,47 @@
-"""Ground sensor recorder 0.1.0. Standard library only; no control outputs."""
+"""Ground sensor recorder 0.2.0. Standard library only; no control outputs."""
 import csv
 import math
 import time
+from pathlib import Path
+from datetime import datetime
+from bisect import bisect_left
 from collections import deque
 from dataclasses import dataclass, asdict
 
 FIELDS = ('t_s', 'ax_m_s2', 'ay_m_s2', 'az_m_s2', 'gx_deg_s', 'gy_deg_s', 'gz_deg_s', 'pressure_pa')
 MAX_ROWS = 100000
+
+class SessionWriter:
+    """Append-only capture with immediate flush; unique directory per session."""
+    def __init__(self, base):
+        import uuid
+        self.directory = Path(base) / (datetime.now().strftime('%Y%m%d-%H%M%S')+'-'+uuid.uuid4().hex[:8])
+        self.directory.mkdir(parents=True)
+        self.data = self.events = None
+        try:
+            self.data = (self.directory/'samples.csv').open('w', newline='', encoding='utf-8-sig')
+            self.events = (self.directory/'events.csv').open('w', newline='', encoding='utf-8-sig')
+            self.writer = csv.DictWriter(self.data, fieldnames=FIELDS)
+            self.writer.writeheader()
+            self.event_writer = csv.writer(self.events)
+            self.event_writer.writerow(['local_time', 'event'])
+            self.event('模拟采集开始')
+            self.data.flush()
+        except OSError:
+            self.close()
+            raise
+
+    def append(self, sample):
+        self.writer.writerow(asdict(sample))
+        self.data.flush()
+
+    def event(self, text):
+        self.event_writer.writerow([datetime.now().isoformat(timespec='milliseconds'), text])
+        self.events.flush()
+
+    def close(self):
+        for f in (self.data, self.events):
+            if f is not None: f.close()
 
 @dataclass(frozen=True)
 class Sample:
@@ -65,13 +100,16 @@ class App:
         import tkinter as tk
         from tkinter import ttk
         self.root, self.tk = root, tk
-        root.title('地面传感器记录器 · v0.1.0')
+        root.title('地面传感器记录器 · v0.2.0')
         root.geometry('1080x760')
         self.mode = 'idle'
         self.rows, self.replay = [], []
         self.window = deque(maxlen=400)
         self.index = 0
         self.last_rx = None
+        self.session = None
+        self.interrupted = False
+        self.save_status = tk.StringVar(value='自动保存：新建采集时选择目录')
         self.started = time.monotonic()
         self.drop = tk.BooleanVar(value=False)
         self.channel = tk.StringVar(value='az_m_s2')
@@ -87,6 +125,13 @@ class App:
         ttk.Checkbutton(root, text='模拟数据中断（超过 1 秒提示）', variable=self.drop).pack(anchor='w', padx=20)
         ttk.Label(root, textvariable=self.status, font=('', 13, 'bold')).pack(anchor='w', padx=20, pady=8)
         ttk.Label(root, textvariable=self.count).pack(anchor='w', padx=20)
+        ttk.Label(root, textvariable=self.save_status, wraplength=1000).pack(anchor='w', padx=20)
+        seekbar = ttk.Frame(root)
+        seekbar.pack(fill='x', padx=20)
+        ttk.Label(seekbar, text='回放定位 %').pack(side='left')
+        self.seek = tk.DoubleVar(value=0)
+        ttk.Scale(seekbar, from_=0, to=100, variable=self.seek).pack(side='left', fill='x', expand=True)
+        ttk.Button(seekbar, text='跳转并暂停', command=self.seek_replay).pack(side='left')
         ttk.Label(root, textvariable=self.latest, font=('Courier', 11)).pack(anchor='w', padx=20, pady=8)
         select = ttk.Combobox(root, textvariable=self.channel, values=FIELDS[1:], state='readonly')
         select.pack(anchor='w', padx=20)
@@ -103,7 +148,17 @@ class App:
         return not self.rows or messagebox.askyesno('保留记录', '将替换当前记录；需要的数据请先保存。继续？')
 
     def start(self):
+        from tkinter import filedialog, messagebox
         if not self.confirm_discard(): return
+        base = filedialog.askdirectory(title='选择自动保存目录（每次采集创建独立子目录）')
+        if not base: return
+        try: new_session = SessionWriter(base)
+        except OSError as e:
+            messagebox.showerror('无法创建采集文件', str(e)); return
+        self.close_session('被新采集替换')
+        self.session = new_session
+        self.save_status.set('自动保存：'+str(new_session.directory))
+        self.interrupted = False
         self.rows, self.replay = [], []
         self.window.clear()
         self.mode, self.started, self.last_rx = 'sim', time.monotonic(), None
@@ -114,9 +169,31 @@ class App:
         if self.mode == 'replay':
             self.replay_elapsed = time.monotonic()-self.started
             self.mode = 'paused'
-        else:
+        elif self.mode != 'paused':
             self.mode = 'idle'
+            self.close_session('用户停止采集')
         self.status.set('已停止 / 已暂停 · 数据保留')
+
+    def close_session(self, reason):
+        if self.session:
+            try: self.session.event(reason)
+            except OSError: self.save_status.set('事件日志写入失败；请检查磁盘')
+            finally:
+                try: self.session.close()
+                except OSError: self.save_status.set('关闭文件失败；请检查磁盘')
+                self.session = None
+
+    def seek_replay(self):
+        if not self.replay: return
+        t0, t1 = self.replay[0].t_s, self.replay[-1].t_s
+        target = t0+(t1-t0)*self.seek.get()/100
+        self.index = min(bisect_left([s.t_s for s in self.replay], target)+1, len(self.replay))
+        self.window.clear()
+        self.window.extend(self.replay[max(0,self.index-400):self.index-1])
+        self.replay_elapsed = self.replay[self.index-1].t_s-t0
+        self.mode = 'paused'
+        self.receive(self.replay[self.index-1])
+        self.status.set(f'回放已定位并暂停 · {self.index}/{len(self.replay)}')
 
     def resume(self):
         if self.mode == 'paused':
@@ -142,6 +219,7 @@ class App:
         except (OSError, ValueError, csv.Error, UnicodeError) as e:
             messagebox.showerror('读取失败', str(e)); return
         if not self.confirm_discard(): return
+        self.close_session('切换到文件回放')
         self.replay, self.rows = data, list(data)
         self.window.clear()
         self.index, self.started, self.mode = 0, time.monotonic(), 'replay'
@@ -160,13 +238,33 @@ class App:
             if not self.drop.get():
                 sample = simulated(now-self.started)
                 self.rows.append(sample)
+                try:
+                    if self.interrupted:
+                        self.session.event('模拟数据恢复')
+                        self.interrupted = False
+                    self.session.append(sample)
+                except OSError as e:
+                    self.mode = 'idle'
+                    self.close_session('写入错误停止')
+                    self.status.set('自动保存失败，已停止；内存数据仍可手动导出')
+                    self.save_status.set(str(e))
+                    self.root.after(50, self.tick)
+                    return
                 self.receive(sample)
                 self.status.set('模拟采集中 · 数据正常')
                 if len(self.rows) >= MAX_ROWS:
                     self.mode = 'idle'
+                    self.close_session('达到记录上限')
                     self.status.set('达到 100000 条上限 · 已停止，请保存')
             elif now-(self.last_rx or self.started) > 1:
                 self.status.set('数据中断 · 超过 1 秒未收到样本（模拟）')
+                if not self.interrupted:
+                    self.interrupted = True
+                    try: self.session.event('模拟数据中断超过 1 秒')
+                    except OSError:
+                        self.mode = 'idle'
+                        self.close_session('日志写入失败')
+                        self.status.set('日志写入失败，已停止')
         elif self.mode == 'replay':
             elapsed = now-self.started
             # Bounded work per event loop to retain responsiveness.
@@ -208,6 +306,7 @@ class App:
     def close(self):
         from tkinter import messagebox
         if self.rows and not messagebox.askyesno('退出', '需要的数据请先保存。确定退出？'): return
+        self.close_session('窗口关闭')
         self.root.destroy()
 
 if __name__ == '__main__':

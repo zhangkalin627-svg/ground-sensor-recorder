@@ -75,6 +75,44 @@ def check(db,configuration=None):
                             part_status=part_status(row,configuration),source=row['source']))
     return results
 
+def migrate(db, old_root, new_root, apply=False):
+    """Map registered paths only. Preview by default; all-or-nothing update."""
+    data=load(db)
+    old=Path(old_root).absolute()
+    new=Path(new_root).resolve(strict=True)
+    if not new.is_dir(): raise ValueError('新根路径必须是目录')
+    plan=[]
+    for row in data['documents']:
+        try: relative=Path(row['path']).relative_to(old)
+        except ValueError: continue
+        proposed=new/relative
+        item=dict(id=row['id'],version=row['version'],old_path=row['path'],new_path=str(proposed),status='可迁移')
+        try:
+            target=proposed.resolve(strict=True)
+            if not target.is_relative_to(new): raise ValueError('目标链接越出新根目录')
+            if not target.is_file(): raise ValueError('目标不是文件')
+            if target==Path(db).resolve(): raise ValueError('目标不能是索引本身')
+            if fingerprint(target)!=row['sha256']: raise ValueError('目标哈希不一致')
+            item['new_path']=str(target)
+        except (OSError,ValueError) as e:
+            item['status']='失败'; item['reason']=str(e)
+        plan.append(item)
+    failed=any(item['status']=='失败' for item in plan)
+    if apply and failed: raise ValueError('迁移校验失败，索引未修改；请先运行预览查看失败项')
+    if apply and plan:
+        mapping={(item['id'],item['version']):item['new_path'] for item in plan}
+        for row in data['documents']:
+            row['path']=mapping.get((row['id'],row['version']),row['path'])
+        target=Path(db).absolute()
+        fd,tmp=tempfile.mkstemp(dir=target.parent,prefix='.doc-migrate-')
+        try:
+            with os.fdopen(fd,'w',encoding='utf-8') as f:
+                json.dump(data,f,ensure_ascii=False,indent=2); f.write('\n'); f.flush(); os.fsync(f.fileno())
+            os.replace(tmp,target)
+        finally:
+            if os.path.exists(tmp): os.unlink(tmp)
+    return dict(applied=bool(apply and plan),failed=failed,matches=len(plan),items=plan)
+
 def main(argv=None):
     p=argparse.ArgumentParser(description='通用资料索引 v0.7.0')
     p.add_argument('--db',default='documents.json'); p.add_argument('--configuration')
@@ -83,9 +121,16 @@ def main(argv=None):
     for option in ('id','version','title','source','file'): a.add_argument('--'+option,required=True)
     a.add_argument('--part-id',default=''); a.add_argument('--part-version',default='')
     sub.add_parser('list'); sub.add_parser('check')
+    m=sub.add_parser('migrate')
+    m.add_argument('--old-root',required=True); m.add_argument('--new-root',required=True)
+    m.add_argument('--apply',action='store_true',help='校验全部成功后更新索引，默认仅预览')
     ns=p.parse_args(argv)
     try:
         if ns.cmd=='add': register(ns.db,ns.id,ns.version,ns.title,ns.source,ns.file,ns.part_id,ns.part_version,ns.configuration)
+        elif ns.cmd=='migrate':
+            result=migrate(ns.db,ns.old_root,ns.new_root,ns.apply)
+            print(json.dumps(result,ensure_ascii=False,indent=2))
+            if result['failed']: return 1
         else:
             result=check(ns.db,ns.configuration) if ns.cmd=='check' else load(ns.db)
             print(json.dumps(result,ensure_ascii=False,indent=2))

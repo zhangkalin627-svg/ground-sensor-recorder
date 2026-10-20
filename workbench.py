@@ -1,11 +1,11 @@
-"""Single command entry for the generic ground engineering tools, v0.9.0."""
+"""Single command entry for the generic ground engineering tools, v0.15.0."""
 import json
 from pathlib import Path
 import subprocess
 import sys
 
 COMMANDS={'record':'recorder.py','analyze':'analysis.py','requirements':'requirements.py',
-          'issues':'issues.py','configuration':'configuration.py','documents':'documents_index.py','results':'test_results.py'}
+          'issues':'issues.py','configuration':'configuration.py','documents':'documents_index.py','results':'test_results.py','report':'summary_report.py'}
 MODULES=[
     ('01','需求管理','部分实现','requirements'),
     ('02','任务与轨道资料','规划',''),
@@ -26,7 +26,7 @@ MODULES=[
 def main(argv=None):
     args=list(sys.argv[1:] if argv is None else argv)
     if not args or args[0] in ('-h','--help','help'):
-        print('地面工程工具入口 v0.9.0\n用法：python workbench.py <命令> [原工具参数]\n'
+        print('地面工程工具入口 v0.15.0\n用法：python workbench.py <命令> [原工具参数]\n'
               '命令：modules, '+', '.join(COMMANDS)+'\n'
               '示例：python workbench.py analyze samples.csv --output report.json\n'
               '查看子工具帮助：python workbench.py requirements --help\n'

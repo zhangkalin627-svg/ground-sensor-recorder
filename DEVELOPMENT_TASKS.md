@@ -257,3 +257,13 @@ python workbench.py documents migrate --old-root /old/data --new-root /new/data 
 该功能不复制、移动、上传或修改资料文件，不扫描索引以外的用户目录。仅适用于当前系统可解析的本地路径；跨操作系统路径转换尚未实现。验证后到写入之间仍需保持资料文件不被其他程序改动，当前无多进程文件锁。
 
 全部 95 项测试通过，新增 5 项覆盖预览与应用、缺失旧目录、前缀边界、缺失和哈希差异、符号链接越界及失败写入保护。Windows、图形窗口、真实硬件未实测。
+
+## v0.14.0 配置版本差异
+
+```
+python workbench.py configuration compare --left-id A1 --left-version 1 --right-id A1 --right-version 2
+```
+
+只读比较名称、型号、变更原因及直接子项，向终端输出 JSON，不展开下层 BOM。区分新增、删除、版本集合变化、相同版本的数量变化及编号大小写变化。相同零件存在多个子版本时完整列出前后版本集合，不推断替换对应关系。任一根版本缺失则拒绝。identical_content 表示所比较内容相同，不表示版本号相同或整个递归装配等价。
+
+新增 test_configuration_compare.py；全部 99 项测试通过。数据库未被修改。Windows、图形界面与真实硬件仍未实测。

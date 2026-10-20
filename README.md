@@ -1,4 +1,4 @@
-# 地面实验工具 v0.8.0
+# 地面实验工具 v0.9.0
 这是通用地面实验数据软件。本版使用合成的桌面运动数据，不是火箭飞控或 GNC，没有制导、姿态解算、导航、点火或执行机构控制功能。
 ## 启动
 安装带 Tk 支持的 Python 3.10 或更高版本。Windows 安装 Python 时保留 Tcl/Tk 选项。在本目录运行：
@@ -129,3 +129,18 @@ python workbench.py documents --help
 ```
 
 modules 列出全部 15 模块的实际范围和入口；规划模块不可运行。当前是统一命令行入口，不是统一图形界面。record 需要 Tk 和图形桌面。子工具的返回码会传回调用者。全部 77 项测试通过，新增覆盖模块清单、传参和返回码、错误命令及真实子进程帮助；图形窗口与硬件未实测。
+
+## v0.9.0 测试证据与需求追踪（第 10 模块基础）
+
+新增 test_results.py、test_test_results.py，并在 workbench.py 增加 results 入口。
+
+```
+python workbench.py results add --run-id RUN1 --test-id T1 --status 通过 --commit abc123 --executed-at 2026-10-20T16:00:00+08:00 --evidence "人工执行记录"
+python workbench.py results trace --requirements requirements.csv --run-id RUN1 --commit abc123
+```
+
+上述为格式示例，不代表已执行的测试。实际使用时填写真实提交与时间。默认数据库 test_results.json；可用 results --db 指定。状态为未运行、通过、失败；已执行记录必须有带时区的时间和证据说明。运行编号与测试编号组合唯一。
+
+追踪仅使用指定运行编号及完全匹配的提交标识；多关联测试全部登记为通过才汇总通过，任一失败则失败，缺失、未运行或无关联则未完成。报告不修改需求表状态，不自动运行测试，也不认证用户登记的证据真实性。源码提交目前为文本标识，不联网校验提交存在性。
+
+全部 81 项测试通过，覆盖多关联、失败、缺失、版本隔离、非法输入及写入保护。桌面窗口与真实硬件仍未实测。统一入口仍为命令行。

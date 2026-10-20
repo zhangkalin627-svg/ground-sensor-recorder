@@ -1,4 +1,4 @@
-# 地面实验工具 v0.7.0
+# 地面实验工具 v0.8.0
 这是通用地面实验数据软件。本版使用合成的桌面运动数据，不是火箭飞控或 GNC，没有制导、姿态解算、导航、点火或执行机构控制功能。
 ## 启动
 安装带 Tk 支持的 Python 3.10 或更高版本。Windows 安装 Python 时保留 Tcl/Tk 选项。在本目录运行：
@@ -112,3 +112,20 @@ python documents_index.py --configuration configuration.json check
 默认索引 documents.json。文件路径记录为当前电脑绝对路径；换电脑需重新登记或后续迁移工具，当前不含上传、复制或路径迁移。check 显示一致、已变更、文件缺失或无法读取；零件关联显示无关联、未核对、存在或未知。给出配置表时拒绝登记未知零件版本。文件变化不会自动更新原哈希；应另登记资料版本。
 
 全部 73 项测试通过，新增 4 项覆盖哈希、文件变化和缺失、重复编号、零件引用及失败写入保护。该功能为资料管理，不是 CAD 建模；桌面和真实硬件仍未实测。
+
+## v0.8.0 统一命令行入口
+
+新增 workbench.py、test_workbench.py，保持原独立脚本兼容。入口使用参数数组启动子工具，不经过 shell，并保留调用目录，以便使用本地相对数据路径。
+
+```
+python workbench.py --help
+python workbench.py modules
+python workbench.py record
+python workbench.py analyze samples.csv --output summary.json
+python workbench.py requirements --help
+python workbench.py issues --help
+python workbench.py configuration --help
+python workbench.py documents --help
+```
+
+modules 列出全部 15 模块的实际范围和入口；规划模块不可运行。当前是统一命令行入口，不是统一图形界面。record 需要 Tk 和图形桌面。子工具的返回码会传回调用者。全部 77 项测试通过，新增覆盖模块清单、传参和返回码、错误命令及真实子进程帮助；图形窗口与硬件未实测。

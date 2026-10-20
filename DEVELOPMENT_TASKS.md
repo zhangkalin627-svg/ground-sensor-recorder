@@ -229,3 +229,7 @@ python workbench.py results trace --requirements requirements.csv --run-id RUN1 
 需求和问题表导出只允许新目标，拒绝覆盖数据库、已有文件、符号链接和硬链接。保留数据库自身的原子更新方式，不改变 CSV 表结构。新增 safe_export.py 和 test_safe_export.py。全部 82 项测试通过；新增测试同时覆盖两种数据库的源文件及链接保护和正常导出。
 
 导出新名称示例：python workbench.py requirements export requirements-copy.csv。目标已存在时需自行选择新名称。图形界面与硬件仍未实测。
+
+## v0.11.0 校验与整理
+
+配置、资料和测试结果增加共享严格 JSON 读取；拒绝重复字段、非有限数值、超过 16 MiB、错误版本与记录超限。全部 86 项测试通过。首页已整理，旧首页保存在 HISTORY_THROUGH_V0_10.md。

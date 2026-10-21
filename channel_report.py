@@ -1,4 +1,4 @@
-"""Per-channel statistics and sampling-gap report for a samples.csv (v0.18.0).
+"""Per-channel statistics and sampling-gap report for a samples.csv (v0.19.0).
 
 Standard library only. Read-only on the input; the optional JSON report is
 created with exclusive mode and never overwrites an existing file.
@@ -90,7 +90,7 @@ def build_report(samples, gap_factor=None, expected_interval=None):
     if not samples:
         raise ValueError('没有数据')
     times = [s.t_s for s in samples]
-    return {'version': '0.18.0',
+    return {'version': '0.19.0',
             'sample_count': len(samples),
             'start_s': times[0], 'end_s': times[-1],
             'duration_s': times[-1] - times[0],

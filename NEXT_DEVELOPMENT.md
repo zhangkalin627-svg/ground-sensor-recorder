@@ -1,6 +1,6 @@
 # 下次开发从这里开始
 
-当前 v0.21.1（仅文档，未测试）。代码状态：analysis.py 为 0.17.0，channel_report.py 为 0.19.0，workbench.py 为 0.20.0，recorder_lines.py 窗口标题为 0.21.0。管家在云服务器（干净盒子，python3 -m unittest discover）上对 7cdf9f7（v0.21.0）运行 147 项 unittest 全部通过，退出码 0。Tk 窗口、Windows 和真实硬件仍未实测：测试只覆盖不需要显示器的部分，recorder_lines.py 的状态行没有人在有桌面的电脑上打开过。
+当前 v0.21.2（仅文档，未测试）。代码状态：analysis.py 为 0.17.0，channel_report.py 为 0.19.0，workbench.py 为 0.20.0，recorder_lines.py 窗口标题为 0.21.0。管家在云服务器（干净盒子，python3 -m unittest discover）上对 7cdf9f7（v0.21.0）和 f17ba60（v0.21.1，仅文档）运行 147 项 unittest 全部通过，退出码 0。Tk 窗口、Windows 和真实硬件仍未实测：测试只覆盖不需要显示器的部分，recorder_lines.py 的状态行没有人在有桌面的电脑上打开过。
 
 ## 已完成
 - v0.16.0：summary_report.py 记录输入文件大小、SHA-256、读取时刻并做前后比对；test_report_traceability.py。
@@ -9,11 +9,12 @@
 - v0.19.0：channel_report.py 增加 --expected-interval 与 --gap-factor，缺口定义与 analysis.py 对齐；版本字符串对齐；TOOLS_V0_19.md。
 - v0.20.0：workbench.py 新增子命令 channel 和 replay，参数原样转交；test_workbench_commands.py。v0.20.1：TOOLS_V0_20.md。
 - v0.21.0：import_status.py（把导入结果生成一行状态文字，纯标准库）、test_import_status.py（7 项）；recorder_lines.py 导入后保留一行状态文字，显示异常行数和主要类别，失败时显示原因。
+- v0.21.2：TOOLS_V0_21.md，说明 import_status.py 的用法和输出格式。
 
 ## 下一轮候选
-1. 需要有桌面的电脑：打开 python recorder_lines.py，导入一份带坏行的文本行日志，确认状态行显示正确。目前没有人能做这件事，已向管家问过谁能做。
-2. realworld_sim 输入格式说明还没拿到，已向管家问过。拿到后再决定接入方式，在此之前不猜格式。
-3. 不依赖窗口的功能：在 TOOLS_V0_20.md 或新文档里补 import_status.py 的用法说明。
+1. 需要有桌面的电脑：打开 python recorder_lines.py，导入一份带坏行的文本行日志，确认状态行显示正确。目前没有人能做这件事，已向管家问过谁能做，还没有回复。
+2. realworld_sim 输入格式说明还没拿到，已向管家问过两次。拿到后再决定接入方式，在此之前不猜格式。
+3. 不依赖窗口、不依赖 realworld_sim 的功能：待定，下一版开始前先看管家有没有新任务和新测试结果。
 4. 管家对后续提交的复跑结果出来后，按结果修正；有失败先修。
 
 保留：浏览器视觉验收、附件核验、多进程协调和跨系统路径转换。专业领域维持既定资料管理范围。

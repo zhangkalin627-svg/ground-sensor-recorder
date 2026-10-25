@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 
 import channel_report
@@ -47,7 +48,9 @@ def run(main, argv):
 
 
 def replay(d, log):
-    sessions = Path(d) / ('s_' + log.stem)
+    # unique output folder per call: replaying the same log twice must not
+    # leave two session folders under one glob
+    sessions = Path(d) / ('s_' + log.stem + '_' + uuid.uuid4().hex[:8])
     rc, out, err = run(replay_session.main, [log, '--out', sessions])
     assert rc == 0, err
     found = list(sessions.glob('*/samples.csv'))

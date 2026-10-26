@@ -1,9 +1,10 @@
-"""Single command entry for the generic ground engineering tools, v0.27.0."""
+"""Single command entry for the generic ground engineering tools, v0.27.1."""
 import json
 from pathlib import Path
 import subprocess
 import sys
 
+VERSION = '0.27.1'
 COMMANDS={'record':'recorder.py','analyze':'analysis.py','requirements':'requirements.py',
           'issues':'issues.py','configuration':'configuration.py','documents':'documents_index.py','results':'test_results.py','report':'summary_report.py',
           'channel':'channel_report.py','replay':'replay_session.py','drift':'drift_report.py',
@@ -29,7 +30,7 @@ MODULES=[
 def main(argv=None):
     args=list(sys.argv[1:] if argv is None else argv)
     if not args or args[0] in ('-h','--help','help'):
-        print('地面工程工具入口 v0.27.0\n用法：python workbench.py <命令> [原工具参数]\n'
+        print(f'地面工程工具入口 v{VERSION}\n用法：python workbench.py <命令> [原工具参数]\n'
               '命令：modules, '+', '.join(COMMANDS)+'\n'
               '示例：python workbench.py analyze samples.csv --output report.json\n'
               '      python workbench.py channel samples.csv --expected-interval 0.01 --json report.json\n'

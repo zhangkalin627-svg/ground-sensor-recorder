@@ -22,7 +22,7 @@ class WorkbenchDriftCommandTests(unittest.TestCase):
             self.assertEqual(workbench.main(['--help']), 0)
         self.assertIn('drift', out.getvalue())
         self.assertIn('pipeline', out.getvalue())
-        self.assertIn('v0.26.0', out.getvalue())
+        self.assertIn(f'v{workbench.VERSION}', out.getvalue())
 
     def test_drift_script_name_is_registered(self):
         self.assertEqual(workbench.COMMANDS['drift'], 'drift_report.py')

@@ -1,4 +1,4 @@
-# 地面实验工具 v0.49.0
+# 地面实验工具 v0.50.0
 
 一个逐步增加模块的通用地面实验与工程记录工具集。当前提供命令行工作台、模拟记录器、文本日志只读导入、离线分析与流水线工具，主要使用 Python 标准库。要求 Python 3.10+；桌面记录器需要 Tk 和图形环境。
 
@@ -43,17 +43,17 @@ python workbench.py pipeline baseline.txt candidate.txt --out run-001
 
 ## 测试与验证范围
 
-v0.49.0 修复连续重复 CSV 表头在 `LineAdapter.read()` 中递归跳过的问题：每次读取改为循环处理，并限制每次最多跳过 1000 个表头，避免递归深度错误且保持单次读取有界。新增 `test_adapter_repeated_headers.py`，用 1500 个连续表头后接一条有效样本验证读取继续、无异常并正常结束。
+v0.50.0 新增 `test_adapter_read_bounds.py`，覆盖空行逐次读取、坏行异常计数和长坏行前缀下 `drain(max_reads=...)` 的工作量上限。`LineAdapter.read()` 对空行和坏行每次最多消费一行；调用者可用 `drain` 限制一次处理的读取次数。生产适配器逻辑未修改。
 
-未运行新增测试或全套测试，提交说明标注“未测试”。在仓库根目录运行：
+本版未运行新增测试或全套测试，提交说明标注“未测试”。在仓库根目录运行：
 
 ```text
-python3 -m unittest test_adapter_repeated_headers test_adapters
+python3 -m unittest test_adapter_read_bounds test_adapters test_adapter_repeated_headers
 python3 -m unittest discover
 python workbench.py --help
 ```
 
-Tk 测试需要 tkinter 和可用 DISPLAY；云机可使用 Xvfb。无 Tk 或 DISPLAY 时跳过，跳过不代表通过。请由管家云服务器或用户电脑运行，报告实际测试总数、失败数、跳过数和退出码。单元测试不能替代真实测量数据、传感器、硬件在环或 Tk 真机验证。
+由管家云服务器或用户电脑运行，报告实际测试总数、失败数、跳过数和退出码。Tk 测试需要 tkinter 和可用 DISPLAY；云机可使用 Xvfb。无 Tk 或 DISPLAY 时跳过，跳过不代表通过。单元测试不能替代真实测量数据、传感器、硬件在环或 Tk 真机验证。
 
 ## 文档
 
@@ -72,4 +72,5 @@ Tk 测试需要 tkinter 和可用 DISPLAY；云机可使用 Xvfb。无 Tk 或 DI
 - [v0.47.0 初始化失败时错误优先级测试说明](TOOLS_V0_47.md)
 - [v0.48.0 成功导入与回放一致性测试说明](TOOLS_V0_48.md)
 - [v0.49.0 连续重复表头读取说明](TOOLS_V0_49.md)
+- [v0.50.0 LineAdapter 读取边界测试说明](TOOLS_V0_50.md)
 - 各版本功能和测试边界见仓库中的 `TOOLS_V0_*.md` 文件。

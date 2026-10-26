@@ -1,4 +1,4 @@
-"""Tests for the one-command replay -> channel -> drift workflow (v0.27.0)."""
+"""Tests for the one-command replay -> channel -> drift workflow (v0.30.0)."""
 import contextlib
 import hashlib
 import io
@@ -49,7 +49,7 @@ class PipelineCliTests(unittest.TestCase):
             self.assertEqual(len(list((output / 'baseline_sessions').glob('*/samples.csv'))), 1)
             self.assertEqual(len(list((output / 'candidate_sessions').glob('*/samples.csv'))), 1)
             manifest = json.loads((output / 'pipeline_manifest.json').read_text(encoding='utf-8'))
-            self.assertEqual(manifest['pipeline_version'], '0.27.0')
+            self.assertEqual(manifest['pipeline_version'], pipeline_report.VERSION)
             self.assertEqual(manifest['status'], 'completed')
             self.assertEqual(manifest['inputs']['baseline']['sha256'],
                              hashlib.sha256(baseline.read_bytes()).hexdigest())
@@ -95,6 +95,59 @@ class PipelineCliTests(unittest.TestCase):
                                                     '--expected-interval', '0'])
             self.assertEqual(rc, 1)
             self.assertIn('阶段 preflight', err)
+            self.assertFalse(output.exists())
+
+    def test_directory_input_is_rejected_before_output_creation(self):
+        with tempfile.TemporaryDirectory() as d:
+            baseline = Path(d) / 'baseline-directory'
+            baseline.mkdir()
+            candidate = make_log(Path(d) / 'candidate.txt')
+            output = Path(d) / 'directory-input-run'
+            rc, _, err = run(pipeline_report.main, [baseline, candidate, '--out', output])
+            self.assertEqual(rc, 1)
+            self.assertIn('阶段 preflight', err)
+            self.assertIn('不是普通文件', err)
+            self.assertFalse(output.exists())
+
+    def test_oversized_input_is_rejected_before_hashing_or_output_creation(self):
+        with tempfile.TemporaryDirectory() as d:
+            baseline = Path(d) / 'oversized.txt'
+            with baseline.open('wb') as handle:
+                handle.truncate(pipeline_report.MAX_INPUT_BYTES + 1)
+            candidate = make_log(Path(d) / 'candidate.txt')
+            output = Path(d) / 'oversized-run'
+            rc, _, err = run(pipeline_report.main, [baseline, candidate, '--out', output])
+            self.assertEqual(rc, 1)
+            self.assertIn('阶段 preflight', err)
+            self.assertIn('超过 50 MB 限制', err)
+            self.assertFalse(output.exists())
+
+    def test_file_identity_handles_input_larger_than_one_hash_block(self):
+        with tempfile.TemporaryDirectory() as d:
+            source = Path(d) / 'multi-block.bin'
+            payload = b'ground-sensor-recorder\n' * 50000
+            source.write_bytes(payload)
+            identity = pipeline_report.file_identity(source)
+            self.assertEqual(identity['size_bytes'], len(payload))
+            self.assertEqual(identity['sha256'], hashlib.sha256(payload).hexdigest())
+
+    def test_output_permission_failure_is_reported_without_manifest(self):
+        with tempfile.TemporaryDirectory() as d:
+            baseline = make_log(Path(d) / 'baseline.txt')
+            candidate = make_log(Path(d) / 'candidate.txt')
+            output = Path(d) / 'denied-output'
+            original_mkdir = Path.mkdir
+
+            def deny_output(path, *args, **kwargs):
+                if path == output:
+                    raise PermissionError('synthetic output permission denied')
+                return original_mkdir(path, *args, **kwargs)
+
+            with patch.object(Path, 'mkdir', autospec=True, side_effect=deny_output):
+                rc, _, err = run(pipeline_report.main, [baseline, candidate, '--out', output])
+            self.assertEqual(rc, 1)
+            self.assertIn('阶段 create_output_directory', err)
+            self.assertIn('synthetic output permission denied', err)
             self.assertFalse(output.exists())
 
     def test_candidate_replay_failure_records_stage_and_partial_outputs(self):

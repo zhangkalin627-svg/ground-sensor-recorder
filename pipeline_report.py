@@ -1,12 +1,8 @@
-"""Run the offline replay -> channel -> drift workflow in one command (v0.27.0).
+"""Run the offline replay -> channel -> drift workflow in one command (v0.30.0).
 
 Standard library only; reads input logs and creates a new output directory.
 Existing outputs are never overwritten. A manifest records input hashes, run
 options, and either the completed result or the stage and outputs present at failure.
-
-Example:
-    python workbench.py pipeline baseline.txt candidate.txt --out run-001 \
-        --expected-interval 0.05 --gap-factor 1.5 --strict
 """
 import argparse
 from datetime import datetime, timezone
@@ -20,7 +16,8 @@ import drift_report
 import replay_session
 from recorder import load_csv
 
-VERSION = '0.27.0'
+VERSION = '0.30.0'
+MAX_INPUT_BYTES = replay_session.MAX_FILE_BYTES
 EXPECTED_OUTPUTS = (
     'baseline_sessions', 'candidate_sessions', 'baseline.json',
     'candidate.json', 'drift.json', 'pipeline_manifest.json',
@@ -72,7 +69,8 @@ def build_pipeline(baseline_path, candidate_path, out_dir,
                    max_rel_change=0.1, max_abs_change=None, strict=False):
     """Create two session folders, channel reports, a drift report, and manifest.
 
-    The output directory must not exist. Failures after creation get a best-effort
+    The output directory must not exist. Both input files must be regular files
+    within replay_session's size limit. Failures after creation get a best-effort
     manifest with the failing stage and paths already present in that directory.
     """
     output = Path(out_dir)
@@ -89,6 +87,11 @@ def build_pipeline(baseline_path, candidate_path, out_dir,
         for label, path in inputs.items():
             if not path.is_file():
                 raise ValueError(f'{label} 输入文件不存在或不是普通文件：{path}')
+            size_bytes = path.stat().st_size
+            if size_bytes > MAX_INPUT_BYTES:
+                limit_mb = MAX_INPUT_BYTES // 1024 // 1024
+                raise ValueError(
+                    f'{label} 输入文件超过 {limit_mb} MB 限制：{size_bytes} bytes')
         fingerprints = {label: file_identity(path) for label, path in inputs.items()}
 
         stage = 'create_output_directory'

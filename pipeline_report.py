@@ -1,13 +1,16 @@
-"""Run the offline replay -> channel -> drift workflow in one command (v0.25.0).
+"""Run the offline replay -> channel -> drift workflow in one command (v0.26.0).
 
 Standard library only; reads input logs and creates a new output directory.
-Existing outputs are never overwritten.
+Existing outputs are never overwritten. A manifest records input hashes and run options.
 
 Example:
     python workbench.py pipeline baseline.txt candidate.txt --out run-001 \
         --expected-interval 0.05 --gap-factor 1.5 --strict
 """
 import argparse
+from datetime import datetime, timezone
+import hashlib
+import json
 import sys
 from pathlib import Path
 
@@ -16,13 +19,31 @@ import drift_report
 import replay_session
 from recorder import load_csv
 
-VERSION = '0.25.0'
+VERSION = '0.26.0'
+
+
+def file_identity(path):
+    """Return a name, size, and SHA-256 without storing the source contents."""
+    path = Path(path)
+    digest = hashlib.sha256()
+    with path.open('rb') as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b''):
+            digest.update(block)
+    return {'name': path.name, 'size_bytes': path.stat().st_size,
+            'sha256': digest.hexdigest()}
+
+
+def write_manifest(manifest, path):
+    """Create the run manifest without replacing an existing file."""
+    with Path(path).open('x', encoding='utf-8') as handle:
+        json.dump(manifest, handle, ensure_ascii=False, indent=2)
+        handle.write('\n')
 
 
 def build_pipeline(baseline_path, candidate_path, out_dir,
                    expected_interval=None, gap_factor=None,
-                   max_rel_change=0.1, max_abs_change=None):
-    """Create two session folders, channel reports, and one drift report.
+                   max_rel_change=0.1, max_abs_change=None, strict=False):
+    """Create two session folders, channel reports, a drift report, and manifest.
 
     The output directory must not exist. This keeps every run separate and
     prevents accidental replacement of source data or previous reports.
@@ -33,6 +54,7 @@ def build_pipeline(baseline_path, candidate_path, out_dir,
     for label, path in inputs.items():
         if not path.is_file():
             raise ValueError(f'{label} 输入文件不存在或不是普通文件：{path}')
+    fingerprints = {label: file_identity(path) for label, path in inputs.items()}
 
     output = Path(out_dir)
     output.mkdir(parents=True, exist_ok=False)
@@ -50,7 +72,29 @@ def build_pipeline(baseline_path, candidate_path, out_dir,
         max_rel_change=max_rel_change, max_abs_change=max_abs_change)
     drift_path = output / 'drift.json'
     drift_report.write_json(result, drift_path)
-    return collected, result, drift_path
+    final_fingerprints = {label: file_identity(path) for label, path in inputs.items()}
+    if final_fingerprints != fingerprints:
+        raise ValueError('输入文件在流程运行期间发生变化；请检查后使用新输出目录重跑')
+
+    exit_code = 2 if strict and result['flagged_channels'] else 0
+    manifest = {
+        'schema_version': 1,
+        'pipeline_version': VERSION,
+        'created_at_utc': datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
+        'inputs': fingerprints,
+        'options': {'expected_interval_s': expected_interval, 'gap_factor': gap_factor,
+                    'max_rel_change': max_rel_change, 'max_abs_change': max_abs_change,
+                    'strict': bool(strict)},
+        'outputs': {'baseline_sessions': 'baseline_sessions',
+                    'candidate_sessions': 'candidate_sessions',
+                    'baseline_report': 'baseline.json', 'candidate_report': 'candidate.json',
+                    'drift_report': 'drift.json'},
+        'flagged_channels': result['flagged_channels'],
+        'exit_code': exit_code,
+    }
+    manifest_path = output / 'pipeline_manifest.json'
+    write_manifest(manifest, manifest_path)
+    return collected, result, drift_path, manifest_path, manifest
 
 
 def main(argv=None):
@@ -71,12 +115,13 @@ def main(argv=None):
                         help='发现漂移通道时返回退出码 2')
     args = parser.parse_args(argv)
     try:
-        collected, result, drift_path = build_pipeline(
+        collected, result, drift_path, manifest_path, manifest = build_pipeline(
             args.baseline, args.candidate, args.out,
             expected_interval=args.expected_interval,
             gap_factor=args.gap_factor,
             max_rel_change=args.max_rel_change,
-            max_abs_change=args.max_abs_change)
+            max_abs_change=args.max_abs_change,
+            strict=args.strict)
     except (OSError, ValueError, UnicodeError) as error:
         print(f'流水线失败：{error}', file=sys.stderr)
         return 1
@@ -88,9 +133,8 @@ def main(argv=None):
         print(f'通道报告：{report_path}')
     print(drift_report.drift_text(result))
     print(f'漂移报告：{drift_path}')
-    if args.strict and result['flagged_channels']:
-        return 2
-    return 0
+    print(f'运行清单：{manifest_path}')
+    return manifest['exit_code']
 
 
 if __name__ == '__main__':

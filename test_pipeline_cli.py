@@ -1,5 +1,6 @@
-"""Tests for the one-command replay -> channel -> drift workflow (v0.25.0)."""
+"""Tests for the one-command replay -> channel -> drift workflow (v0.26.0)."""
 import contextlib
+import hashlib
 import io
 import json
 from pathlib import Path
@@ -47,6 +48,15 @@ class PipelineCliTests(unittest.TestCase):
                              ['flagged_channels'], ['ax_m_s2'])
             self.assertEqual(len(list((output / 'baseline_sessions').glob('*/samples.csv'))), 1)
             self.assertEqual(len(list((output / 'candidate_sessions').glob('*/samples.csv'))), 1)
+            manifest = json.loads((output / 'pipeline_manifest.json').read_text(encoding='utf-8'))
+            self.assertEqual(manifest['pipeline_version'], '0.26.0')
+            self.assertEqual(manifest['inputs']['baseline']['sha256'],
+                             hashlib.sha256(baseline.read_bytes()).hexdigest())
+            self.assertEqual(manifest['inputs']['candidate']['size_bytes'], candidate.stat().st_size)
+            self.assertEqual(manifest['options']['expected_interval_s'], 0.05)
+            self.assertEqual(manifest['flagged_channels'], ['ax_m_s2'])
+            self.assertEqual(manifest['exit_code'], 2)
+            self.assertNotIn(str(Path(d).resolve()), (output / 'pipeline_manifest.json').read_text(encoding='utf-8'))
 
     def test_same_data_returns_clean_status(self):
         with tempfile.TemporaryDirectory() as d:
@@ -58,6 +68,8 @@ class PipelineCliTests(unittest.TestCase):
             self.assertIn('没有通道超过阈值', text)
             self.assertEqual(json.loads((output / 'drift.json').read_text(encoding='utf-8'))
                              ['flagged_channels'], [])
+            manifest = json.loads((output / 'pipeline_manifest.json').read_text(encoding='utf-8'))
+            self.assertEqual(manifest['exit_code'], 0)
 
     def test_existing_output_is_never_overwritten(self):
         with tempfile.TemporaryDirectory() as d:

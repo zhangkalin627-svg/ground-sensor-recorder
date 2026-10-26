@@ -10,6 +10,7 @@ from dataclasses import dataclass, asdict
 
 FIELDS = ('t_s', 'ax_m_s2', 'ay_m_s2', 'az_m_s2', 'gx_deg_s', 'gy_deg_s', 'gz_deg_s', 'pressure_pa')
 MAX_ROWS = 100000
+VERSION = '0.44.0'
 
 class SessionWriter:
     """Append-only capture with immediate flush; unique directory per session."""
@@ -28,7 +29,11 @@ class SessionWriter:
             self.event('模拟采集开始')
             self.data.flush()
         except OSError:
-            self.close()
+            try:
+                self.close()
+            except OSError:
+                # Preserve the initialization error after attempting every opened handle.
+                pass
             raise
 
     def append(self, sample):
@@ -40,8 +45,21 @@ class SessionWriter:
         self.events.flush()
 
     def close(self):
-        for f in (self.data, self.events):
-            if f is not None: f.close()
+        """Try to close every opened file even if one close raises an I/O error."""
+        first_error = None
+        for attribute in ('data', 'events'):
+            handle = getattr(self, attribute, None)
+            if handle is None:
+                continue
+            try:
+                handle.close()
+            except OSError as error:
+                if first_error is None:
+                    first_error = error
+            else:
+                setattr(self, attribute, None)
+        if first_error is not None:
+            raise first_error
 
 @dataclass(frozen=True)
 class Sample:
@@ -100,7 +118,7 @@ class App:
         import tkinter as tk
         from tkinter import ttk
         self.root, self.tk = root, tk
-        root.title('地面传感器记录器 · v0.2.0')
+        root.title(f'地面传感器记录器 · v{VERSION}')
         root.geometry('1080x760')
         self.mode = 'idle'
         self.rows, self.replay = [], []

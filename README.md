@@ -1,7 +1,11 @@
-# 地面实验工具 v0.43.1
+# 地面实验工具 v0.44.0
+
 一个逐步增加模块的通用地面实验与工程记录工具集。当前提供命令行工作台、模拟记录器、文本日志只读导入、离线分析与流水线工具，主要使用 Python 标准库。要求 Python 3.10+；桌面记录器需要 Tk 和图形环境。
+
 本项目目前是记录和离线分析工具，不是经过飞行或硬件验证的火箭飞控系统。模拟数据不是实测数据；项目不会向传感器或设备发送控制输出。
+
 ## 快速开始
+
 ```text
 python workbench.py --help
 python workbench.py modules
@@ -12,8 +16,11 @@ python workbench.py replay input.txt --out sessions
 python workbench.py drift baseline.json candidate.json --max-rel-change 0.05
 python workbench.py pipeline baseline.txt candidate.txt --out run-001
 ```
+
 文件路径按当前工作目录解析。`record` 只生成模拟数据，桌面窗口需要 Tk。`replay` 将文本行日志只读导入为采样、异常和设备信息文件。`analyze`、`channel`、`drift` 和 `pipeline` 对记录或报告进行离线处理。运行 `python workbench.py <命令> --help` 查看子工具参数。
+
 ## 当前模块状态
+
 | 模块 | 当前能力与边界 |
 |---|---|
 | 01 需求管理 | 文本需求、新增、筛选、CSV 与状态登记，部分实现 |
@@ -31,16 +38,23 @@ python workbench.py pipeline baseline.txt candidate.txt --out run-001
 | 13 地面采集与离线分析 | 模拟记录、CSV 回放、只读文本日志导入、通道统计、漂移比较与流水线；未接真实仪器 |
 | 14 问题管理 | 文本问题记录、处理和关闭依据；不认证附件真实性 |
 | 15 只读状态展示 | 规划 |
+
 统一入口为 `workbench.py`，目前是命令行工作台；记录器窗口是独立的 Tk 界面，并非统一图形平台。
+
 ## 测试与验证范围
-v0.43.0 新增 `test_recorder_session_cleanup.py`，覆盖采集事件日志写入失败和会话文件关闭失败时的状态提示与会话引用清理。回读发现 v0.43.0 的 `workbench.py` 缩进有误，本版 v0.43.1 已恢复正确结构并更新版本号；本版未测试。可运行：
+
+v0.44.0 加强了 `SessionWriter` 的文件资源清理：初始化第二个文件失败时关闭已打开的样本文件；关闭一个文件抛出 `OSError` 时仍尝试关闭另一个；采集追加写入失败时记录器停止并关闭会话文件。新增用例使用内存文件对象和替身，不需要 Tk 显示环境。本版未测试，提交说明标注“未测试”。可运行：
+
 ```text
 python3 -m unittest test_recorder_session_cleanup
 python3 -m unittest discover
 python workbench.py --help
 ```
-本新增测试使用标准库替身，不需要 Tk 显示环境。全套测试需由管家云服务器或用户电脑运行。单元测试不能替代真实测量数据、传感器、硬件在环或 Tk 真机验证。
+
+全套测试需由管家云服务器或用户电脑运行。单元测试不能替代真实测量数据、传感器、硬件在环或 Tk 真机验证。
+
 ## 文档
+
 - [下次开发入口](NEXT_DEVELOPMENT.md)
 - [15 模块路线图](ROADMAP.md)
 - [具体开发任务](DEVELOPMENT_TASKS.md)
@@ -50,4 +64,5 @@ python workbench.py --help
 - [v0.42.0 采集切换与文本回放测试说明](TOOLS_V0_42.md)
 - [v0.43.0 采集会话关闭异常测试说明](TOOLS_V0_43.md)
 - [v0.43.1 工作台结构修正说明](TOOLS_V0_43_1.md)
+- [v0.44.0 会话文件资源清理说明](TOOLS_V0_44.md)
 - 各版本功能和测试边界见仓库中的 `TOOLS_V0_*.md` 文件。

@@ -1,4 +1,4 @@
-# 地面实验工具 v0.48.0
+# 地面实验工具 v0.49.0
 
 一个逐步增加模块的通用地面实验与工程记录工具集。当前提供命令行工作台、模拟记录器、文本日志只读导入、离线分析与流水线工具，主要使用 Python 标准库。要求 Python 3.10+；桌面记录器需要 Tk 和图形环境。
 
@@ -43,12 +43,12 @@ python workbench.py pipeline baseline.txt candidate.txt --out run-001
 
 ## 测试与验证范围
 
-v0.48.0 在 `test_recorder_window.py` 新增一项成功文本导入与回放一致性测试：核对两条有效样本、一条异常行的窗口状态与 samples.csv、anomalies.csv、device.json，回放完成后确认输入与会话文件未变化。记录器和回放生产逻辑未修改。
+v0.49.0 修复连续重复 CSV 表头在 `LineAdapter.read()` 中递归跳过的问题：每次读取改为循环处理，并限制每次最多跳过 1000 个表头，避免递归深度错误且保持单次读取有界。新增 `test_adapter_repeated_headers.py`，用 1500 个连续表头后接一条有效样本验证读取继续、无异常并正常结束。
 
 未运行新增测试或全套测试，提交说明标注“未测试”。在仓库根目录运行：
 
 ```text
-xvfb-run -a python3 -m unittest test_recorder_window
+python3 -m unittest test_adapter_repeated_headers test_adapters
 python3 -m unittest discover
 python workbench.py --help
 ```
@@ -71,4 +71,5 @@ Tk 测试需要 tkinter 和可用 DISPLAY；云机可使用 Xvfb。无 Tk 或 DI
 - [v0.46.0 会话初始化失败清理测试说明](TOOLS_V0_46.md)
 - [v0.47.0 初始化失败时错误优先级测试说明](TOOLS_V0_47.md)
 - [v0.48.0 成功导入与回放一致性测试说明](TOOLS_V0_48.md)
+- [v0.49.0 连续重复表头读取说明](TOOLS_V0_49.md)
 - 各版本功能和测试边界见仓库中的 `TOOLS_V0_*.md` 文件。

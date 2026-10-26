@@ -16,6 +16,7 @@ from recorder import FIELDS, Sample, simulated
 
 MAX_LINE = 512
 MAX_ANOMALIES = 1000
+MAX_HEADER_SKIPS_PER_READ = 1000
 HEADER_LINE = ','.join(FIELDS)
 
 
@@ -96,7 +97,8 @@ class LineAdapter(SensorAdapter):
 
     lines: any iterator of str or bytes (an open file, or a reader the caller
     wraps around a port). Bad lines are logged to anomalies and skipped; they
-    never raise. Blank lines and the header line are skipped silently.
+    never raise. Blank lines and the header line are skipped silently. To keep
+    one read bounded, it skips at most MAX_HEADER_SKIPS_PER_READ repeated headers.
     """
 
     def __init__(self, lines, info, anomalies=None):
@@ -109,33 +111,37 @@ class LineAdapter(SensorAdapter):
     def read(self):
         if self.finished:
             return None
-        try:
-            raw = next(self._lines)
-        except StopIteration:
-            self.finished = True
-            return None
-        if isinstance(raw, bytes):
-            raw = raw.decode('utf-8', errors='replace')
-        text = raw.strip()
-        if not text or text.lstrip('\ufeff') == HEADER_LINE:
-            return None if not text else self.read()
-        if len(text) > MAX_LINE:
-            self.anomalies.add('line_too_long', f'{len(text)} 字符')
-            return None
-        parts = [p.strip() for p in text.split(',')]
-        if len(parts) != len(FIELDS):
-            self.anomalies.add('field_count', f'期望 {len(FIELDS)} 项，收到 {len(parts)} 项：{text}')
-            return None
-        try:
-            sample = Sample.parse(dict(zip(FIELDS, parts)))
-        except (ValueError, TypeError) as e:
-            self.anomalies.add('invalid', f'{e}：{text}')
-            return None
-        if self._last_t is not None and sample.t_s <= self._last_t:
-            self.anomalies.add('time_order', f't={sample.t_s} 不大于上一条 {self._last_t}')
-            return None
-        self._last_t = sample.t_s
-        return sample
+        for _ in range(MAX_HEADER_SKIPS_PER_READ):
+            try:
+                raw = next(self._lines)
+            except StopIteration:
+                self.finished = True
+                return None
+            if isinstance(raw, bytes):
+                raw = raw.decode('utf-8', errors='replace')
+            text = raw.strip()
+            if not text:
+                return None
+            if text.lstrip('\ufeff') == HEADER_LINE:
+                continue
+            if len(text) > MAX_LINE:
+                self.anomalies.add('line_too_long', f'{len(text)} 字符')
+                return None
+            parts = [p.strip() for p in text.split(',')]
+            if len(parts) != len(FIELDS):
+                self.anomalies.add('field_count', f'期望 {len(FIELDS)} 项，收到 {len(parts)} 项：{text}')
+                return None
+            try:
+                sample = Sample.parse(dict(zip(FIELDS, parts)))
+            except (ValueError, TypeError) as e:
+                self.anomalies.add('invalid', f'{e}：{text}')
+                return None
+            if self._last_t is not None and sample.t_s <= self._last_t:
+                self.anomalies.add('time_order', f't={sample.t_s} 不大于上一条 {self._last_t}')
+                return None
+            self._last_t = sample.t_s
+            return sample
+        return None
 
 
 def drain(adapter, max_reads=500):

@@ -1,6 +1,7 @@
-"""Tests for preserving pipeline errors and protecting manifest paths (v0.33.0)."""
+"""Tests for preserving pipeline errors and protecting manifest paths (v0.34.0)."""
 import contextlib
 import io
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -89,6 +90,69 @@ class FailureManifestWriteTests(unittest.TestCase):
 
             self.assertTrue(target.exists())
             self.assertEqual(target.read_text(encoding='utf-8'), '{"partial":')
+
+    def test_permission_denied_open_leaves_no_manifest_file(self):
+        with tempfile.TemporaryDirectory() as d:
+            target = Path(d) / 'pipeline_manifest.json'
+            with patch('pipeline_report.os.open',
+                       side_effect=PermissionError('synthetic manifest permission denied')):
+                with self.assertRaisesRegex(PermissionError, 'synthetic manifest permission denied'):
+                    pipeline_report.write_manifest({'status': 'completed'}, target)
+            self.assertFalse(target.exists())
+
+    def test_success_manifest_open_failure_is_recorded_as_failed_run(self):
+        with tempfile.TemporaryDirectory() as d:
+            baseline = make_log(Path(d) / 'baseline.txt')
+            candidate = make_log(Path(d) / 'candidate.txt')
+            output = Path(d) / 'run'
+            stderr = io.StringIO()
+            real_open = pipeline_report.os.open
+            manifest_attempts = [0]
+
+            def deny_first_manifest_open(path, flags, *args, **kwargs):
+                if Path(path).name == 'pipeline_manifest.json':
+                    manifest_attempts[0] += 1
+                    if manifest_attempts[0] == 1:
+                        raise PermissionError('synthetic success manifest permission denied')
+                return real_open(path, flags, *args, **kwargs)
+
+            with patch('pipeline_report.os.open', side_effect=deny_first_manifest_open), \
+                 contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
+                rc = pipeline_report.main([str(baseline), str(candidate), '--out', str(output)])
+
+            self.assertEqual(rc, 1)
+            self.assertEqual(manifest_attempts[0], 2)
+            self.assertIn('阶段 write_success_manifest', stderr.getvalue())
+            self.assertIn('synthetic success manifest permission denied', stderr.getvalue())
+            manifest = json.loads((output / 'pipeline_manifest.json').read_text(encoding='utf-8'))
+            self.assertEqual(manifest['status'], 'failed')
+            self.assertEqual(manifest['failure_stage'], 'write_success_manifest')
+            self.assertEqual(manifest['error_type'], 'PermissionError')
+            self.assertEqual(manifest['exit_code'], 1)
+
+    def test_primary_error_remains_when_failure_manifest_open_is_denied(self):
+        with tempfile.TemporaryDirectory() as d:
+            source = make_log(Path(d) / 'input.txt')
+            output = Path(d) / 'run'
+            stderr = io.StringIO()
+            real_open = pipeline_report.os.open
+
+            def deny_manifest_open(path, flags, *args, **kwargs):
+                if Path(path).name == 'pipeline_manifest.json':
+                    raise PermissionError('synthetic failure manifest permission denied')
+                return real_open(path, flags, *args, **kwargs)
+
+            with patch('pipeline_report.replay_session.import_lines',
+                       side_effect=ValueError('synthetic replay error')), \
+                 patch('pipeline_report.os.open', side_effect=deny_manifest_open), \
+                 contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
+                rc = pipeline_report.main([str(source), str(source), '--out', str(output)])
+
+            self.assertEqual(rc, 1)
+            self.assertIn('阶段 baseline_replay', stderr.getvalue())
+            self.assertIn('synthetic replay error', stderr.getvalue())
+            self.assertIn('失败清单未能写入', stderr.getvalue())
+            self.assertFalse((output / 'pipeline_manifest.json').exists())
 
 
 if __name__ == '__main__':

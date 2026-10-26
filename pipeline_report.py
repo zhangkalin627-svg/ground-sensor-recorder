@@ -1,4 +1,4 @@
-"""Run the offline replay -> channel -> drift workflow in one command (v0.30.0).
+"""Run the offline replay -> channel -> drift workflow in one command (v0.31.0).
 
 Standard library only; reads input logs and creates a new output directory.
 Existing outputs are never overwritten. A manifest records input hashes, run
@@ -8,6 +8,7 @@ import argparse
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -16,7 +17,7 @@ import drift_report
 import replay_session
 from recorder import load_csv
 
-VERSION = '0.30.0'
+VERSION = '0.31.0'
 MAX_INPUT_BYTES = replay_session.MAX_FILE_BYTES
 EXPECTED_OUTPUTS = (
     'baseline_sessions', 'candidate_sessions', 'baseline.json',
@@ -44,6 +45,33 @@ def file_identity(path):
             digest.update(block)
     return {'name': path.name, 'size_bytes': path.stat().st_size,
             'sha256': digest.hexdigest()}
+
+
+def _write_json_exclusive(value, path):
+    """Write JSON exclusively and remove this call's partial file on failure."""
+    path = Path(path)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
+    created_stat = os.fstat(fd)
+    try:
+        handle = os.fdopen(fd, 'w', encoding='utf-8')
+        fd = None
+        with handle:
+            json.dump(value, handle, ensure_ascii=False, indent=2)
+            handle.write('\n')
+    except BaseException:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+        try:
+            current_stat = path.lstat()
+            if (current_stat.st_dev, current_stat.st_ino) == (
+                    created_stat.st_dev, created_stat.st_ino):
+                path.unlink()
+        except OSError:
+            pass
+        raise
 
 
 def write_manifest(manifest, path):
@@ -105,7 +133,7 @@ def build_pipeline(baseline_path, candidate_path, out_dir,
         samples = load_csv(imported.directory / 'samples.csv')
         report = channel_report.build_report(samples, gap_factor, expected_interval)
         report_path = output / 'baseline.json'
-        channel_report.write_json(report, report_path)
+        _write_json_exclusive(report, report_path)
         collected['baseline'] = (imported, report, report_path)
 
         stage = 'candidate_replay'
@@ -114,7 +142,7 @@ def build_pipeline(baseline_path, candidate_path, out_dir,
         samples = load_csv(imported.directory / 'samples.csv')
         report = channel_report.build_report(samples, gap_factor, expected_interval)
         report_path = output / 'candidate.json'
-        channel_report.write_json(report, report_path)
+        _write_json_exclusive(report, report_path)
         collected['candidate'] = (imported, report, report_path)
 
         stage = 'drift_comparison'
@@ -123,7 +151,7 @@ def build_pipeline(baseline_path, candidate_path, out_dir,
             max_rel_change=max_rel_change, max_abs_change=max_abs_change)
         stage = 'drift_report'
         drift_path = output / 'drift.json'
-        drift_report.write_json(result, drift_path)
+        _write_json_exclusive(result, drift_path)
 
         stage = 'verify_inputs'
         final_fingerprints = {label: file_identity(path) for label, path in inputs.items()}

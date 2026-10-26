@@ -1,4 +1,4 @@
-"""Tests for the one-command replay -> channel -> drift workflow (v0.30.0)."""
+"""Tests for the one-command replay -> channel -> drift workflow (v0.31.0)."""
 import contextlib
 import hashlib
 import io
@@ -199,6 +199,75 @@ class PipelineCliTests(unittest.TestCase):
         self.assertEqual(rc, 2)
         self.assertEqual(Path(command[1]).name, 'pipeline_report.py')
         self.assertEqual(command[2:], args)
+
+    def test_input_change_during_pipeline_is_marked_failed(self):
+        with tempfile.TemporaryDirectory() as d:
+            baseline = make_log(Path(d) / 'baseline.txt')
+            candidate = make_log(Path(d) / 'candidate.txt')
+            original_hash = hashlib.sha256(baseline.read_bytes()).hexdigest()
+            output = Path(d) / 'changed-input-run'
+            real_build_report = pipeline_report.channel_report.build_report
+            changed = [False]
+
+            def build_then_change(samples, *args, **kwargs):
+                report = real_build_report(samples, *args, **kwargs)
+                if not changed[0]:
+                    with baseline.open('a', encoding='utf-8') as handle:
+                        handle.write('# changed while pipeline was running\n')
+                    changed[0] = True
+                return report
+
+            with patch('pipeline_report.channel_report.build_report', side_effect=build_then_change):
+                rc, _, err = run(pipeline_report.main, [baseline, candidate, '--out', output])
+            self.assertEqual(rc, 1)
+            self.assertIn('阶段 verify_inputs', err)
+            manifest = json.loads((output / 'pipeline_manifest.json').read_text(encoding='utf-8'))
+            self.assertEqual(manifest['status'], 'failed')
+            self.assertEqual(manifest['failure_stage'], 'verify_inputs')
+            self.assertEqual(manifest['exit_code'], 1)
+            self.assertEqual(manifest['inputs']['baseline']['sha256'], original_hash)
+            self.assertIn('baseline.json', manifest['partial_outputs'])
+            self.assertIn('candidate.json', manifest['partial_outputs'])
+            self.assertIn('drift.json', manifest['partial_outputs'])
+
+    def test_output_parent_file_failure_is_reported(self):
+        with tempfile.TemporaryDirectory() as d:
+            baseline = make_log(Path(d) / 'baseline.txt')
+            candidate = make_log(Path(d) / 'candidate.txt')
+            parent_file = Path(d) / 'not-a-directory'
+            parent_file.write_text('keep', encoding='utf-8')
+            output = parent_file / 'run'
+            rc, _, err = run(pipeline_report.main, [baseline, candidate, '--out', output])
+            self.assertEqual(rc, 1)
+            self.assertIn('阶段 create_output_directory', err)
+            self.assertTrue(parent_file.is_file())
+            self.assertEqual(parent_file.read_text(encoding='utf-8'), 'keep')
+            self.assertFalse(output.exists())
+
+    def test_partial_report_write_is_removed_and_failure_manifest_kept(self):
+        with tempfile.TemporaryDirectory() as d:
+            baseline = make_log(Path(d) / 'baseline.txt')
+            candidate = make_log(Path(d) / 'candidate.txt')
+            output = Path(d) / 'partial-report-run'
+            real_dump = json.dump
+            calls = [0]
+
+            def fail_first_dump(value, handle, *args, **kwargs):
+                if calls[0] == 0:
+                    calls[0] += 1
+                    handle.write('{"partial":')
+                    raise OSError('synthetic report write failure')
+                return real_dump(value, handle, *args, **kwargs)
+
+            with patch('pipeline_report.json.dump', side_effect=fail_first_dump):
+                rc, _, err = run(pipeline_report.main, [baseline, candidate, '--out', output])
+            self.assertEqual(rc, 1)
+            self.assertIn('阶段 baseline_channel_report', err)
+            self.assertFalse((output / 'baseline.json').exists())
+            manifest = json.loads((output / 'pipeline_manifest.json').read_text(encoding='utf-8'))
+            self.assertEqual(manifest['status'], 'failed')
+            self.assertEqual(manifest['failure_stage'], 'baseline_channel_report')
+            self.assertNotIn('baseline.json', manifest['partial_outputs'])
 
 
 if __name__ == '__main__':

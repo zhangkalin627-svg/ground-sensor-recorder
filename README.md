@@ -1,4 +1,4 @@
-# 地面实验工具 v0.54.0
+# 地面实验工具 v0.55.0
 
 一个逐步增加模块的通用地面实验与工程记录工具集。当前提供命令行工作台、模拟记录器、文本日志只读导入、离线分析与流水线工具，主要使用 Python 标准库。要求 Python 3.10+；桌面记录器需要 Tk 和图形环境。
 
@@ -43,12 +43,12 @@ python workbench.py pipeline baseline.txt candidate.txt --out run-001
 
 ## 测试与验证范围
 
-v0.54.0 增加无限重复 CSV 表头流的有界读取回归测试：一次 `LineAdapter.read()` 最多跳过 1000 行重复表头；`drain(max_reads)` 限制调用 `read()` 的次数，因此重复表头输入在一次 drain 中至多读取 `1000 × max_reads` 行。测试确认持续输入表头时 drain 在预算内返回，不误报结束，也不记录为异常。没有修改 `adapters.py` 生产逻辑。
+v0.55.0 增加 `LineAdapter` 行长度边界回归测试：512 字符的有效 CSV 行可读取，超过上限 1 字符的行记录为 `line_too_long` 异常。只增加测试，没有修改 `adapters.py` 生产逻辑。
 
 本版新增测试、全套测试和 Tk 窗口均未运行，提交说明标注“未测试”。在仓库根目录运行：
 
 ```text
-python3 -m unittest test_adapter_repeated_headers
+python3 -m unittest test_adapter_line_length
 python3 -m unittest discover
 python workbench.py --help
 ```
@@ -77,4 +77,5 @@ python workbench.py --help
 - [v0.52.0 Tk 预检关闭失败处理说明](TOOLS_V0_52.md)
 - [v0.53.0 适配器读取预算边界测试说明](TOOLS_V0_53.md)
 - [v0.54.0 无限重复表头流的有界读取测试说明](TOOLS_V0_54.md)
+- [v0.55.0 LineAdapter 行长度边界测试说明](TOOLS_V0_55.md)
 - 各版本功能和测试边界见仓库中的 `TOOLS_V0_*.md` 文件。

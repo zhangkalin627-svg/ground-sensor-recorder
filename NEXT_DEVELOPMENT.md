@@ -1,11 +1,11 @@
 # 下次开发从这里开始
 
-当前 v0.54.0（未测试）。本版仅增加适配器边界回归测试并同步文档，没有改 `adapters.py` 生产逻辑：以持续重复 CSV 表头的输入验证 `drain(max_reads)` 在单次调用内保持有界，并且不会把未结束的输入标记为结束。
+当前 v0.55.0（未测试）。本版只增加 `LineAdapter` 行长度边界回归测试并同步文档，没有改 `adapters.py` 生产逻辑：验证恰好 512 字符的有效行可读，超过上限 1 字符时记为 `line_too_long`。
 
 未运行新增测试或全套测试。运行：
 
 ```text
-python3 -m unittest test_adapter_repeated_headers
+python3 -m unittest test_adapter_line_length
 python3 -m unittest discover
 python workbench.py --help
 xvfb-run -a python3 -m unittest test_recorder_window

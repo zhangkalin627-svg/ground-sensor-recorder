@@ -1,4 +1,4 @@
-"""Run the offline replay -> channel -> drift workflow in one command (v0.31.0).
+"""Run the offline replay -> channel -> drift workflow in one command (v0.32.0).
 
 Standard library only; reads input logs and creates a new output directory.
 Existing outputs are never overwritten. A manifest records input hashes, run
@@ -17,7 +17,7 @@ import drift_report
 import replay_session
 from recorder import load_csv
 
-VERSION = '0.31.0'
+VERSION = '0.32.0'
 MAX_INPUT_BYTES = replay_session.MAX_FILE_BYTES
 EXPECTED_OUTPUTS = (
     'baseline_sessions', 'candidate_sessions', 'baseline.json',
@@ -75,10 +75,8 @@ def _write_json_exclusive(value, path):
 
 
 def write_manifest(manifest, path):
-    """Create a manifest without replacing an existing file."""
-    with Path(path).open('x', encoding='utf-8') as handle:
-        json.dump(manifest, handle, ensure_ascii=False, indent=2)
-        handle.write('\n')
+    """Write a manifest exclusively, cleaning this call's partial file on error."""
+    _write_json_exclusive(manifest, path)
 
 
 def _utc_now():

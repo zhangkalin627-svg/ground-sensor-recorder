@@ -1,4 +1,4 @@
-"""Tests for the one-command replay -> channel -> drift workflow (v0.31.0)."""
+"""Tests for the one-command replay -> channel -> drift workflow (v0.32.0)."""
 import contextlib
 import hashlib
 import io

@@ -1,4 +1,4 @@
-"""Tk replay completion, pause/resume, and consecutive text-import checks.
+"""Tk replay completion, pause/resume, and import/session-switch checks.
 
 Run with: xvfb-run -a python3 -m unittest test_recorder_window_playback
 """
@@ -148,6 +148,41 @@ class RecorderWindowPlaybackTests(unittest.TestCase):
                     {path.name for path in second_dir.iterdir()},
                     {'samples.csv', 'anomalies.csv', 'device.json'})
                 self.assertEqual(len(list(output_base.glob('*-lines-*'))), 2)
+            finally:
+                root.destroy()
+
+    def test_switching_simulated_capture_to_text_replay_closes_capture_session(self):
+        from recorder import SessionWriter, simulated
+
+        with TemporaryDirectory() as temp:
+            root, app = self._new_app()
+            try:
+                capture_base = Path(temp) / 'capture'
+                capture_base.mkdir()
+                session = SessionWriter(capture_base)
+                sample = simulated(0.0)
+                session.append(sample)
+                app.session = session
+                app.rows = [sample]
+                app.mode = 'sim'
+
+                source = Path(temp) / 'text-log.txt'
+                output_base = Path(temp) / 'sessions'
+                output_base.mkdir()
+                self._write_log(source, [
+                    '0,4,0,9.5,0,0,0,101322',
+                ])
+                self._import(app, source, output_base)
+
+                self.assertIsNone(app.session)
+                self.assertTrue(session.data.closed)
+                self.assertTrue(session.events.closed)
+                self.assertIn('切换到文本行回放',
+                              (session.directory / 'events.csv').read_text(
+                                  encoding='utf-8-sig'))
+                self.assertEqual(app.mode, 'replay')
+                self.assertEqual(app.rows, app.replay)
+                self.assertEqual(len(app.rows), 1)
             finally:
                 root.destroy()
 

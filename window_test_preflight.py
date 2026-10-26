@@ -18,18 +18,24 @@ def check_tk_environment(tk_module=None, environ=None, platform=None):
     if system not in ('win32', 'darwin') and not env.get('DISPLAY'):
         return False, '未设置 DISPLAY；请在图形会话中运行，或使用 xvfb-run -a。'
 
-    root = None
     try:
         root = tk_module.Tk()
-        root.withdraw()
     except Exception as exc:
         return False, f'Tk 无法启动显示环境：{exc}'
-    finally:
-        if root is not None:
-            try:
-                root.destroy()
-            except Exception:
-                pass
+
+    try:
+        root.withdraw()
+    except Exception as exc:
+        try:
+            root.destroy()
+        except Exception:
+            pass
+        return False, f'Tk 无法启动显示环境：{exc}'
+
+    try:
+        root.destroy()
+    except Exception as exc:
+        return False, f'Tk 测试窗口无法关闭：{exc}'
 
     return True, 'Tk 和显示环境可用。'
 

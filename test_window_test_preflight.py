@@ -6,8 +6,9 @@ from window_test_preflight import check_tk_environment
 
 
 class FakeRoot:
-    def __init__(self, withdraw_error=None):
+    def __init__(self, withdraw_error=None, destroy_error=None):
         self.withdraw_error = withdraw_error
+        self.destroy_error = destroy_error
         self.hidden = False
         self.destroyed = False
 
@@ -18,6 +19,8 @@ class FakeRoot:
 
     def destroy(self):
         self.destroyed = True
+        if self.destroy_error:
+            raise self.destroy_error
 
 
 class FakeTk:
@@ -73,6 +76,16 @@ class TkPreflightTests(unittest.TestCase):
         self.assertFalse(available)
         self.assertTrue(root.destroyed)
         self.assertIn('withdraw failed', message)
+
+    def test_destroy_failure_reports_unavailable(self):
+        root = FakeRoot(destroy_error=RuntimeError('destroy failed'))
+        available, message = check_tk_environment(
+            tk_module=FakeTk(root), environ={'DISPLAY': ':99'}, platform='linux')
+        self.assertFalse(available)
+        self.assertTrue(root.hidden)
+        self.assertTrue(root.destroyed)
+        self.assertIn('无法关闭', message)
+        self.assertIn('destroy failed', message)
 
 
 if __name__ == '__main__':

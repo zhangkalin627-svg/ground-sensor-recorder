@@ -1,13 +1,14 @@
 # 下次开发从这里开始
 
-当前版本 v0.37.0（未测试）。本版新增 `test_pipeline_cli_retry.py`，检查输入文件身份变化时 CLI 显示“请检查后使用新输出目录重跑”；通过替身稳定复现，不改流水线业务逻辑。`workbench.py` 版本为 0.37.0，详见 `TOOLS_V0_37.md`。
+当前版本 v0.38.0（未测试）。本版扩展 `test_recorder_window.py`：在 Tk 显示环境下实际走文本行导入窗口流程，核对异常行状态、回放样本和生成文件。测试使用临时目录及文件对话框替身，不连接硬件。`workbench.py` 版本为 0.38.0，使用说明见 `TOOLS_V0_38.md`。
 
-v0.36.0 的并发测试和 v0.35.0 的同目录保护测试云端结果尚未在本轮收件箱最近 25 封中看到；最新可见失败邮件针对旧提交 v0.27.0。本轮未看到管家新任务。v0.37.0 代码和测试未运行；按 v0.36.0 预计 205 项加本版 1 项推算，全套预计 206 项，实际数量以云机运行为准。
+v0.37.0 的输入身份变化 CLI 提示、v0.36.0 的独立输出目录并发测试和 v0.35.0 的同目录保护测试，云端复跑结果尚未在最近收件箱读取中看到；已看到的旧失败报告针对 v0.27.0。当前未见管家新任务。v0.38.0 代码和测试未运行；预计全套测试约 207 项，实际数量以云机运行结果为准。
 
 运行：
 
 ```text
-python3 -m unittest test_pipeline_cli_retry
+python3 -m unittest test_recorder_window
+xvfb-run -a python3 -m unittest test_recorder_window
 python3 -m unittest discover
 python workbench.py --help
 ```
@@ -15,7 +16,7 @@ python workbench.py --help
 ## 后续开发
 
 1. 管家有新任务时先处理；收到测试失败时先按测试名和原始错误修复。没有任务或失败时继续迭代，不等待云测结果。
-2. 为 `recorder_lines.py` 的异常状态行补充 Xvfb 冒烟覆盖，改 `test_recorder_window.py`；没有 Tk/Xvfb 时明确记为跳过，不写成通过。
+2. 为 `recorder_lines.py` 的导入失败状态补充窗口覆盖，检查文件选择后解析失败时窗口会保留可读的失败提示，改 `test_recorder_window.py`；无 Tk/Xvfb 时明确记为跳过，不写成通过。
 3. 对照管家给的仿真说明再规划 `realworld_sim` 用法；仿真输出必须标为仿真，不能声称是真实测量或火箭专用模型结果。
 4. 维护 `README.md`、版本使用文档和本文件，使当前状态、运行方式和验证范围一致。
 

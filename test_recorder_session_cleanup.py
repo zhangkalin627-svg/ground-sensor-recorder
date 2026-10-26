@@ -1,4 +1,4 @@
-"""Session cleanup tests for recorder.SessionWriter and recorder.App.tick (v0.45.0).
+"""Session cleanup tests for recorder.SessionWriter and recorder.App.tick (v0.46.0).
 
 These tests use in-memory file objects and stand-ins; no Tk display is needed.
 Run: python3 -m unittest test_recorder_session_cleanup
@@ -33,6 +33,18 @@ class MemoryFile(io.StringIO):
         if self.fail_next_write:
             self.fail_next_write = False
             raise OSError('sample write failed')
+        return super().write(text)
+
+
+class FailOnSecondWriteFile(MemoryFile):
+    def __init__(self):
+        super().__init__()
+        self.write_calls = 0
+
+    def write(self, text):
+        self.write_calls += 1
+        if self.write_calls == 2:
+            raise OSError('initial event write failed')
         return super().write(text)
 
 
@@ -88,6 +100,39 @@ class SessionCleanupTests(unittest.TestCase):
 
         self.assertEqual(open_file.call_count, 2)
         self.assertTrue(data_file.closed)
+
+    def test_directory_creation_error_does_not_open_session_files(self):
+        with tempfile.TemporaryDirectory() as base:
+            with patch.object(Path, 'mkdir', side_effect=OSError('directory denied')):
+                with patch.object(Path, 'open') as open_file:
+                    with self.assertRaisesRegex(OSError, 'directory denied'):
+                        SessionWriter(base)
+
+        open_file.assert_not_called()
+
+    def test_csv_header_write_error_closes_both_open_files(self):
+        data_file = MemoryFile()
+        data_file.fail_next_write = True
+        events_file = MemoryFile()
+        with tempfile.TemporaryDirectory() as base:
+            with patch.object(Path, 'open', side_effect=[data_file, events_file]):
+                with self.assertRaisesRegex(OSError, 'sample write failed'):
+                    SessionWriter(base)
+
+        self.assertTrue(data_file.closed)
+        self.assertTrue(events_file.closed)
+
+    def test_initial_event_write_error_closes_both_open_files(self):
+        data_file = MemoryFile()
+        events_file = FailOnSecondWriteFile()
+        with tempfile.TemporaryDirectory() as base:
+            with patch.object(Path, 'open', side_effect=[data_file, events_file]):
+                with self.assertRaisesRegex(OSError, 'initial event write failed'):
+                    SessionWriter(base)
+
+        self.assertEqual(events_file.write_calls, 2)
+        self.assertTrue(data_file.closed)
+        self.assertTrue(events_file.closed)
 
     def test_close_attempts_events_file_after_data_close_error(self):
         writer = SessionWriter.__new__(SessionWriter)

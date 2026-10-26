@@ -1,10 +1,10 @@
-"""Single command entry for the generic ground engineering tools, v0.45.0."""
+"""Single command entry for the generic ground engineering tools, v0.46.0."""
 import json
 from pathlib import Path
 import subprocess
 import sys
 
-VERSION = '0.45.0'
+VERSION = '0.46.0'
 COMMANDS={'record':'recorder.py','analyze':'analysis.py','requirements':'requirements.py',
           'issues':'issues.py','configuration':'configuration.py','documents':'documents_index.py','results':'test_results.py','report':'summary_report.py',
           'channel':'channel_report.py','replay':'replay_session.py','drift':'drift_report.py',
@@ -32,8 +32,8 @@ def main(argv=None):
     if not args or args[0] in ('-h','--help','help'):
         print(f'地面工程工具入口 v{VERSION}\n用法：python workbench.py <命令> [原工具参数]\n'
               '命令：modules, '+', '.join(COMMANDS)+'\n'
-              '示例：python workbench.py analyze samples.csv --output summary.json\n'
-              '      python workbench.py channel samples.csv --expected-interval 0.01 --json report.json\n'
+              '示例：python workbench.py analyze samples.csv --expected-interval 0.05 --gap-factor 1.5 --output analysis.json\n'
+              '      python workbench.py channel samples.csv --expected-interval 0.05 --gap-factor 1.5 --json channel.json\n'
               '      python workbench.py replay input.txt --out sessions\n'
               '      python workbench.py drift baseline.json candidate.json --max-rel-change 0.05 --strict\n'
               '      python workbench.py pipeline baseline.txt candidate.txt --out run-001 --strict\n'

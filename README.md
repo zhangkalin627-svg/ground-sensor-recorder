@@ -1,133 +1,64 @@
-# 地面实验工具 v0.17.0
+# 地面实验工具 v0.41.0
 
-一个逐步增加模块的通用地面实验与工程记录工具集。当前提供命令行入口及独立的模拟记录器，使用 Python 标准库；Python 3.10+，记录器需 Tk 与图形桌面。
+一个逐步增加模块的通用地面实验与工程记录工具集。当前提供命令行工作台、模拟记录器、文本日志只读导入、离线分析与流水线工具，主要使用 Python 标准库。要求 Python 3.10+；桌面记录器需要 Tk 和图形环境。
 
-## 从这里开始
+本项目目前是记录和离线分析工具，不是经过飞行或硬件验证的火箭飞控系统。模拟数据不是实测数据；项目不会向传感器或设备发送控制输出。
 
-```
+## 快速开始
+
+```text
 python workbench.py --help
 python workbench.py modules
 python workbench.py record
-python workbench.py analyze samples.csv --output summary.json
-python workbench.py requirements --help
-python workbench.py issues --help
-python workbench.py configuration --help
-python workbench.py documents --help
-python workbench.py results --help
-python -m unittest -v
+python workbench.py analyze samples.csv --expected-interval 0.05 --gap-factor 1.5 --output analysis.json
+python workbench.py channel samples.csv --expected-interval 0.05 --gap-factor 1.5 --json channel.json
+python workbench.py replay input.txt --out sessions
+python workbench.py drift baseline.json candidate.json --max-rel-change 0.05
+python workbench.py pipeline baseline.txt candidate.txt --out run-001
 ```
 
-子命令的文件路径相对于当前工作目录。record 只生成模拟数据；Windows 可沿用 start.bat。分析读取记录器 CSV，不推断数据是否为真实测量。JSON 分析报告和数据库导出不覆盖已有目标。
+文件路径按当前工作目录解析。`record` 只生成模拟数据，桌面窗口需要 Tk。`replay` 将文本行日志只读导入为采样、异常和设备信息文件。`analyze`、`channel`、`drift` 和 `pipeline` 对记录或报告进行离线处理。运行 `python workbench.py <命令> --help` 查看子工具参数。
 
-## 当前模块状态（v0.11.0）
+## 当前模块状态
 
-此表为当前摘要，后面的版本记录仅表示历史交付。
-
-| 模块 | 当前能力 |
+| 模块 | 当前能力与边界 |
 |---|---|
-| 01 需求管理 | 文本需求、新增、筛选、CSV；已有独立测试结果追踪，状态修改已实现 |
-| 02 任务与轨道 | 规划，仅资料管理范围 |
-| 03 CAD | 文件索引、SHA-256 与变化检查；无 CAD 内核 |
-| 04 结构振动 | 规划，仅外部资料与结果管理范围 |
-| 05 CFD | 规划，仅外部资料与结果管理范围 |
-| 06 热分析 | 规划 |
-| 07 推进 | 规划，仅公开文献管理范围 |
-| 08 EDA | 规划，仅通用地面仪器资料管理范围 |
-| 09 GNC | 规划，仅学习资料管理范围 |
-| 10 软件测试管理 | 测试结果登记、按运行与源码标识追踪；不认证真实执行 |
-| 11 数据链验证 | 模拟及部分自动测试，无硬件在环 |
-| 12 配置管理 | 零件版本、装配引用、独立快照及直接子项差异 |
-| 13 采集分析 | 模拟记录器、离线统计、只读适配器基础；未接入真实仪器 |
-| 14 故障管理 | 文本记录、处理和关闭依据；附件真实性未认证 |
-| 15 只读展示 | 规划 |
+| 01 需求管理 | 文本需求、新增、筛选、CSV 与状态登记，部分实现 |
+| 02 任务与轨道资料 | 规划，仅资料管理范围 |
+| 03 CAD 文件索引 | 文件索引、SHA-256 与变化检查；没有 CAD 内核 |
+| 04 结构与振动资料 | 规划，仅外部资料与结果管理范围 |
+| 05 CFD 资料 | 规划，仅外部资料与结果管理范围 |
+| 06 热分析资料 | 规划 |
+| 07 推进系统资料 | 规划，当前仅公开文献管理范围 |
+| 08 电气电子资料 | 规划，仅通用地面仪器资料管理范围 |
+| 09 GNC 学习资料 | 规划，仅学习资料管理范围 |
+| 10 软件版本与测试管理 | 登记测试证据与需求追踪；不认证真实执行 |
+| 11 地面数据链测试 | 部分测试基础；没有硬件在环验证 |
+| 12 零件配置管理 | 文本零件版本、装配引用与快照工具 |
+| 13 地面采集与离线分析 | 模拟记录、CSV 回放、只读文本日志导入、通道统计、漂移比较与流水线；未接真实仪器 |
+| 14 问题管理 | 文本问题记录、处理和关闭依据；不认证附件真实性 |
+| 15 只读状态展示 | 规划 |
 
-统一入口为命令行 workbench.py，尚无统一图形平台。桌面窗口和真实硬件未实测。
+统一入口为 `workbench.py`，目前是命令行工作台；记录器窗口是独立的 Tk 界面，并非统一图形平台。
 
-## 数据与校验
+## 测试与验证范围
 
-配置、资料索引和测试结果读取 JSON 时拒绝重复字段、NaN/Infinity、超过 16 MiB 的文件及过深嵌套。配置和资料索引的 schema_version 必须为整数 1，拒绝布尔值与浮点数。各类记录上限 10000；记录器样本上限仍为 100000。
+v0.41.0 的 README、版本标记和新增窗口测试尚未运行。可以在仓库根目录运行：
 
-资料索引使用绝对路径，已支持显式根目录映射迁移。测试和复测依据为用户登记文本，不自动认证执行或附件；源码提交标识不联网验证。需求、问题等数据库更新采用原子替换，但当前未提供多进程并发写入协调。
+```text
+python3 -m unittest discover
+xvfb-run -a python3 -m unittest test_recorder_window_playback
+python workbench.py --help
+```
 
-## 验证
+窗口测试需要 Tk 与显示环境；无 Tk 或 `DISPLAY` 时会跳过，跳过不等于通过。全套测试需由管家云服务器或用户电脑运行。单元测试不能替代真实测量数据、传感器、硬件在环或 Tk 真机验证。
 
-本轮全套 103 项测试通过。图形窗口、Windows 实机和真实硬件未实测；不能将单元测试结果视为硬件验证。
-
-## 开发与历史
+## 文档
 
 - [下次开发入口](NEXT_DEVELOPMENT.md)
 - [15 模块路线图](ROADMAP.md)
 - [具体开发任务](DEVELOPMENT_TASKS.md)
-- [截至 v0.10.0 的原首页与历史用法](HISTORY_THROUGH_V0_10.md)
-
-## v0.12.0 需求状态修改
-
-```
-python workbench.py requirements set-status --id R1 --status 已批准
-python workbench.py requirements set-status --id R1 --status 已验证 --verification "真实验证方法" --tests "T1;T2"
-```
-
-省略 --verification 或 --tests 保留原值；显式提供时替换对应字段。已验证状态仍必须满足原有依据和测试编号规则。状态只是用户登记，不自动确认测试通过。需求编号不区分大小写；未找到、非法状态、缺失依据均拒绝，写入失败保留旧文件。其他需求、来源和描述不变。
-
-新增 test_requirement_status.py，全部 90 项测试通过。CLI 已由现有 workbench requirements 路由支持，无需更改入口。桌面与硬件未实测。
-
-## v0.13.0 资料路径迁移
-
-```
-python workbench.py documents migrate --old-root /old/data --new-root /new/data
-python workbench.py documents migrate --old-root /old/data --new-root /new/data --apply
-```
-
-默认仅预览，显示匹配数量、新旧路径及失败原因。--apply 在所有匹配项校验成功后原子更新索引。新文件必须存在、位于新根目录内且 SHA-256 与登记值一致。按路径层级匹配旧目录，避免 old 错配 older；旧目录可以已经不存在。任一匹配项失败则不写入。无匹配时不写入。
-
-该功能不复制、移动、上传或修改资料文件，不扫描索引以外的用户目录。仅适用于当前系统可解析的本地路径；跨操作系统路径转换尚未实现。验证后到写入之间仍需保持资料文件不被其他程序改动，当前无多进程文件锁。
-
-全部 95 项测试通过，新增 5 项覆盖预览与应用、缺失旧目录、前缀边界、缺失和哈希差异、符号链接越界及失败写入保护。Windows、图形窗口、真实硬件未实测。
-
-## v0.14.0 配置版本差异
-
-```
-python workbench.py configuration compare --left-id A1 --left-version 1 --right-id A1 --right-version 2
-```
-
-只读比较名称、型号、变更原因及直接子项，向终端输出 JSON，不展开下层 BOM。区分新增、删除、版本集合变化、相同版本的数量变化及编号大小写变化。相同零件存在多个子版本时完整列出前后版本集合，不推断替换对应关系。任一根版本缺失则拒绝。identical_content 表示所比较内容相同，不表示版本号相同或整个递归装配等价。
-
-新增 test_configuration_compare.py；全部 99 项测试通过。数据库未被修改。Windows、图形界面与真实硬件仍未实测。
-
-## v0.15.0 离线 HTML 汇总报告
-
-```
-python workbench.py report --requirements requirements.csv --issues issues.csv --configuration configuration.json --documents documents.json --output summary.html
-```
-
-四类输入可按需选择，至少一类；明确指定却不存在或损坏的文件报错，不当成空表。生成自包含静态 HTML，显示数量、登记状态与摘要。所有用户文本转义，无 JavaScript、远程资源或设备控制。输出必须是新文件，禁止覆盖输入及已有文件（含链接）。
-
-报告只展示已登记资料，不重新核对文件哈希、证据真实性或测试实际执行。HTML 内包含输入路径和登记文本，分享前自行核对内容。它是离线报告，不是统一交互式图形界面。
-
-新增 summary_report.py、test_summary_report.py，workbench 增加 report 命令。全部 103 项测试通过，覆盖 HTML 转义、四类数据、空表、错误输入及输出保护。浏览器视觉效果、Windows、硬件未实测。
-
-## v0.17.0 采样缺口与极值时间
-
-基于 GitHub 最新 v0.16.0 继续研发。先从远端获取当前源码和测试，原全套 107 项通过；新增后共 110 项测试通过。统一入口 workbench.py report 已使用 example_requirements.csv 成功生成 HTML，浏览器视觉效果未实测。
-
-```
-python workbench.py analyze samples.csv --expected-interval 0.05 --gap-factor 1.5 --output analysis-new.json
-```
-
---expected-interval 为用户明确提供的采样周期（秒），缺口判断为实际间隔严格大于周期乘倍数；默认倍数 1.5。未指定周期时 gaps.assessed=false、count=null，不自行推断采样周期。结果列出超阈值间隔的起止时间，不估算丢失样本数。两文件比较时相同参数用于两份文件，周期不同应分别分析。
-
-各通道新增 first_minimum_t_s、first_maximum_t_s，极值重复时只报告第一次。保留现有统计和 JSON schema_version=1，工具版本为 0.17.0。输入不修改，输出防覆盖沿用。
-
-本轮未接入记录器适配器，Windows、桌面窗口与真实硬件仍未实测。
-
-## v0.16.0 到 v0.18.0 新增的独立脚本（文档 v0.18.1）
-
-以下脚本尚未接入 workbench.py，需单独运行。详细说明、限制和两套缺口定义的对比见 [TOOLS_V0_16_TO_V0_18.md](TOOLS_V0_16_TO_V0_18.md)。
-
-```
-python replay_session.py input.txt --out sessions
-python channel_report.py samples.csv --json report.json
-python recorder_lines.py
-```
-
-replay_session.py 只读导入文本行日志，坏行记入 anomalies.csv。channel_report.py 按通道输出采样间隔、缺口（间隔中位数的 5 倍）、极值与均值；它的缺口定义与 workbench.py analyze 的 --expected-interval 不同。recorder_lines.py 是带导入按钮的记录器窗口，需 Tk。管家在云服务器上对提交 3909986 运行 128 项测试通过；Tk 窗口、Windows 与硬件未实测。
+- [历史记录](HISTORY_THROUGH_V0_10.md)
+- [v0.40.0 窗口导入取消与失败恢复](TOOLS_V0_40.md)
+- [v0.41.0 首页与回放窗口测试说明](TOOLS_V0_41.md)
+- 各版本功能和测试边界见仓库中的 `TOOLS_V0_*.md` 文件。

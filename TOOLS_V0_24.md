@@ -33,7 +33,7 @@ python workbench.py channel <候选目录>/samples.csv --expected-interval 0.05 
 python workbench.py drift baseline.json candidate.json --max-rel-change 0.10 --strict --json drift.json
 ```
 
-默认相对变化阈值为 10%。可用 `--max-abs-change 0.5` 加入绝对变化阈值；两项都超过时才需要理解具体规则，请参考 `TOOLS_V0_22.md`。`--strict` 让存在漂移通道时退出码为 2。结果写入 `drift.json`，文件必须不存在。
+默认相对变化阈值为 10%。可用 `--max-abs-change 0.5` 加入绝对变化阈值。只要相对阈值或已指定的绝对阈值任一超限，就将通道标为漂移；基准值为 0 时，任何非零变化都算漂移。完整规则见 `TOOLS_V0_22.md`。`--strict` 让存在漂移通道时退出码为 2。结果写入 `drift.json`，文件必须不存在。
 
 ## 测试与限制
 

@@ -1,9 +1,10 @@
-"""Tests for preserving pipeline errors when manifest writes fail."""
+"""Tests for preserving pipeline errors and protecting manifest paths (v0.33.0)."""
 import contextlib
 import io
 from pathlib import Path
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pipeline_report
@@ -60,6 +61,34 @@ class FailureManifestWriteTests(unittest.TestCase):
             self.assertIn('synthetic replay error', stderr.getvalue())
             self.assertIn('失败清单未能写入', stderr.getvalue())
             self.assertFalse((output / 'pipeline_manifest.json').exists())
+
+    def test_existing_manifest_is_never_overwritten(self):
+        with tempfile.TemporaryDirectory() as d:
+            target = Path(d) / 'pipeline_manifest.json'
+            original = '{"keep": true}\n'
+            target.write_text(original, encoding='utf-8')
+
+            with self.assertRaises(FileExistsError):
+                pipeline_report.write_manifest({'replace': True}, target)
+
+            self.assertEqual(target.read_text(encoding='utf-8'), original)
+
+    def test_partial_file_is_preserved_when_path_identity_differs(self):
+        with tempfile.TemporaryDirectory() as d:
+            target = Path(d) / 'pipeline_manifest.json'
+
+            def fail_after_partial_write(value, handle, *args, **kwargs):
+                handle.write('{"partial":')
+                raise OSError('synthetic interrupted write')
+
+            different_identity = SimpleNamespace(st_dev=123, st_ino=456)
+            with patch('pipeline_report.json.dump', side_effect=fail_after_partial_write), \
+                 patch('pathlib.Path.lstat', return_value=different_identity):
+                with self.assertRaisesRegex(OSError, 'synthetic interrupted write'):
+                    pipeline_report.write_manifest({'status': 'complete'}, target)
+
+            self.assertTrue(target.exists())
+            self.assertEqual(target.read_text(encoding='utf-8'), '{"partial":')
 
 
 if __name__ == '__main__':

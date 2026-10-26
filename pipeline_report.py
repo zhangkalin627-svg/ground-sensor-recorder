@@ -1,4 +1,4 @@
-"""Run the offline replay -> channel -> drift workflow in one command (v0.32.0).
+"""Run the offline replay -> channel -> drift workflow in one command (v0.33.0).
 
 Standard library only; reads input logs and creates a new output directory.
 Existing outputs are never overwritten. A manifest records input hashes, run
@@ -17,7 +17,7 @@ import drift_report
 import replay_session
 from recorder import load_csv
 
-VERSION = '0.32.0'
+VERSION = '0.33.0'
 MAX_INPUT_BYTES = replay_session.MAX_FILE_BYTES
 EXPECTED_OUTPUTS = (
     'baseline_sessions', 'candidate_sessions', 'baseline.json',

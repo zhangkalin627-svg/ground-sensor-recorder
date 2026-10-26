@@ -1,4 +1,4 @@
-"""Recorder window with one extra button: import a text line log (v0.28.0).
+"""Recorder window with one extra button: import a text line log (v0.39.0).
 
 Run:  python recorder_lines.py
 It is the 0.2.0 recorder window (recorder.App) plus a read-only import of a
@@ -18,7 +18,7 @@ class LineApp(App):
     def __init__(self, root):
         super().__init__(root)
         from tkinter import StringVar, ttk
-        root.title('地面传感器记录器 · v0.28.0（文本行导入）')
+        root.title('地面传感器记录器 · v0.39.0（文本行导入）')
         ttk.Button(root, text='导入文本行日志并回放（只读）',
                    command=self.import_lines).pack(anchor='w', padx=20, pady=2)
         self.lines_status = StringVar(value='最近一次导入：尚未导入')

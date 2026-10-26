@@ -65,6 +65,38 @@ class RecorderWindowSmokeTests(unittest.TestCase):
             finally:
                 root.destroy()
 
+    def test_import_failure_keeps_failure_status_visible(self):
+        import tkinter as tk
+        from tkinter import filedialog, messagebox
+        from recorder_lines import LineApp
+
+        with TemporaryDirectory() as temp:
+            root = tk.Tk()
+            try:
+                app = LineApp(root)
+                source = Path(temp) / 'sensor.txt'
+                source.write_text('sample\n', encoding='utf-8')
+                output_base = Path(temp) / 'sessions'
+                output_base.mkdir()
+
+                with patch.object(filedialog, 'askopenfilename',
+                                  return_value=str(source)), \
+                     patch.object(filedialog, 'askdirectory',
+                                  return_value=str(output_base)), \
+                     patch.object(messagebox, 'showerror') as showerror, \
+                     patch('recorder_lines.replay_session.import_lines',
+                           side_effect=OSError('simulated import failure')) as importer:
+                    app.confirm_discard = lambda: True
+                    app.import_lines()
+
+                self.assertEqual(app.lines_status.get(),
+                                 '最近一次导入：失败，simulated import failure')
+                showerror.assert_called_once_with(
+                    '导入失败', 'simulated import failure')
+                importer.assert_called_once_with(str(source), str(output_base))
+            finally:
+                root.destroy()
+
 
 if __name__ == '__main__':
     unittest.main()

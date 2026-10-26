@@ -1,4 +1,4 @@
-# 地面实验工具 v0.47.0
+# 地面实验工具 v0.48.0
 
 一个逐步增加模块的通用地面实验与工程记录工具集。当前提供命令行工作台、模拟记录器、文本日志只读导入、离线分析与流水线工具，主要使用 Python 标准库。要求 Python 3.10+；桌面记录器需要 Tk 和图形环境。
 
@@ -43,15 +43,17 @@ python workbench.py pipeline baseline.txt candidate.txt --out run-001
 
 ## 测试与验证范围
 
-v0.47.0 为 `SessionWriter` 初始化失败的错误保留和资源清理补充三项无显示器测试：第二个文件打开失败时首个文件关闭也报错，仍保留初始化错误；CSV 表头写入失败且数据文件关闭报错时仍关闭事件文件并保留写入错误；初始事件写入失败且事件文件关闭报错时仍关闭样本文件并保留初始写入错误。新增测试和全套测试均未运行，提交说明标注“未测试”。运行：
+v0.48.0 在 `test_recorder_window.py` 新增一项成功文本导入与回放一致性测试：核对两条有效样本、一条异常行的窗口状态与 samples.csv、anomalies.csv、device.json，回放完成后确认输入与会话文件未变化。记录器和回放生产逻辑未修改。
+
+未运行新增测试或全套测试，提交说明标注“未测试”。在仓库根目录运行：
 
 ```text
-python3 -m unittest test_recorder_session_cleanup
+xvfb-run -a python3 -m unittest test_recorder_window
 python3 -m unittest discover
 python workbench.py --help
 ```
 
-全套测试需由管家云服务器或用户电脑运行。单元测试不能替代真实测量数据、传感器、硬件在环或 Tk 真机验证。
+Tk 测试需要 tkinter 和可用 DISPLAY；云机可使用 Xvfb。无 Tk 或 DISPLAY 时跳过，跳过不代表通过。请由管家云服务器或用户电脑运行，报告实际测试总数、失败数、跳过数和退出码。单元测试不能替代真实测量数据、传感器、硬件在环或 Tk 真机验证。
 
 ## 文档
 
@@ -68,4 +70,5 @@ python workbench.py --help
 - [v0.45.0 事件日志失败与重复关闭测试说明](TOOLS_V0_45.md)
 - [v0.46.0 会话初始化失败清理测试说明](TOOLS_V0_46.md)
 - [v0.47.0 初始化失败时错误优先级测试说明](TOOLS_V0_47.md)
+- [v0.48.0 成功导入与回放一致性测试说明](TOOLS_V0_48.md)
 - 各版本功能和测试边界见仓库中的 `TOOLS_V0_*.md` 文件。

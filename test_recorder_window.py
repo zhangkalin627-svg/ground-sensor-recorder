@@ -204,5 +204,68 @@ class RecorderWindowSmokeTests(unittest.TestCase):
                 root.destroy()
 
 
+
+    def test_successful_import_matches_saved_session_after_playback(self):
+        import csv
+        import json
+        import tkinter as tk
+        from tkinter import filedialog, messagebox
+        from recorder import load_csv
+        from recorder_lines import LineApp
+
+        with TemporaryDirectory() as temp:
+            root = tk.Tk()
+            try:
+                source = Path(temp) / 'consistent.txt'
+                source.write_text(
+                    '0,1,0,9.8,0,0,0,101325\n'
+                    'bad,line\n'
+                    '1,2,0,9.9,0,0,0,101326\n', encoding='utf-8')
+                original = source.read_bytes()
+                output_base = Path(temp) / 'sessions'
+                output_base.mkdir()
+                app = LineApp(root)
+                with patch.object(filedialog, 'askopenfilename', return_value=str(source)), \
+                     patch.object(filedialog, 'askdirectory', return_value=str(output_base)), \
+                     patch.object(messagebox, 'showinfo') as showinfo:
+                    app.confirm_discard = lambda: True
+                    app.import_lines()
+                directories = list(output_base.glob('*-lines-*'))
+                self.assertEqual(len(directories), 1)
+                directory = directories[0]
+                saved = load_csv(directory / 'samples.csv')
+                self.assertEqual(len(saved), 2)
+                self.assertEqual(app.rows, saved)
+                self.assertEqual(app.replay, saved)
+                self.assertEqual(app.mode, 'replay')
+                self.assertEqual(app.index, 0)
+                self.assertEqual(list(app.window), [])
+                self.assertIsNone(app.session)
+                self.assertEqual(app.save_status.get(), '已保存：' + str(directory))
+                self.assertEqual(app.lines_status.get(),
+                                 '最近一次导入：异常行 1 条（field_count 1）')
+                with (directory / 'anomalies.csv').open(
+                        encoding='utf-8-sig', newline='') as handle:
+                    anomalies = list(csv.DictReader(handle))
+                self.assertEqual(len(anomalies), 1)
+                self.assertEqual(anomalies[0]['kind'], 'field_count')
+                info = json.loads((directory / 'device.json').read_text(encoding='utf-8'))
+                self.assertEqual(info['source'], source.name)
+                self.assertEqual(info['serial'], '未知')
+                self.assertEqual(info['firmware'], '未知')
+                showinfo.assert_called_once()
+                before = {p.name: p.read_bytes() for p in directory.iterdir()}
+                with patch('recorder.time.monotonic', return_value=app.started + 2):
+                    app.tick()
+                self.assertEqual(app.index, len(saved))
+                self.assertEqual(list(app.window), saved)
+                self.assertEqual(app.mode, 'idle')
+                self.assertEqual(app.status.get(), '文件回放完成')
+                self.assertEqual(app.rows, saved)
+                self.assertEqual(source.read_bytes(), original)
+                self.assertEqual({p.name: p.read_bytes() for p in directory.iterdir()}, before)
+            finally:
+                root.destroy()
+
 if __name__ == '__main__':
     unittest.main()

@@ -1,12 +1,16 @@
-# v0.33.0：运行清单路径保护测试
+# v0.33.1：运行清单路径保护与工作台入口修正
 
 `pipeline_report.py` 的成功和失败运行清单均以独占方式创建，不覆盖已有目标。若写入出错，清理逻辑先核对路径当前文件身份；身份不匹配时保留该路径，避免误删并发替换后出现的其他文件。
 
 本版在 `test_pipeline_manifest_write_failure.py` 新增两项测试：已有清单保持原内容；模拟部分写入后路径身份不匹配时保留文件。代码和测试未测试。
 
+v0.33.0 的 `workbench.py` 更新时曾意外替换帮助页和 `modules` 输出实现。v0.33.1 已从 v0.32.0 恢复原有帮助和模块 JSON 输出，并保留 `pipeline` 命令及版本号更新。请测试工作台帮助、`modules` 输出和子命令转发。
+
 运行：
 
 ```text
+python workbench.py --help
+python workbench.py modules
 python3 -m unittest test_pipeline_manifest_write_failure
 python3 -m unittest discover
 ```

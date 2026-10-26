@@ -1,10 +1,10 @@
-"""Single command entry for the generic ground engineering tools, v0.33.0."""
+"""Single command entry for the generic ground engineering tools, v0.33.1."""
 import json
 from pathlib import Path
 import subprocess
 import sys
 
-VERSION = '0.33.0'
+VERSION = '0.33.1'
 COMMANDS={'record':'recorder.py','analyze':'analysis.py','requirements':'requirements.py',
           'issues':'issues.py','configuration':'configuration.py','documents':'documents_index.py','results':'test_results.py','report':'summary_report.py',
           'channel':'channel_report.py','replay':'replay_session.py','drift':'drift_report.py',
@@ -29,25 +29,32 @@ MODULES=[
 
 def main(argv=None):
     args=list(sys.argv[1:] if argv is None else argv)
-    if not args or args[0] in ('-h','--help'):
-        print(f'地面实验工具工作台 v{VERSION}')
-        print('用法: python workbench.py <命令> [参数...]')
-        print('命令: ' + ', '.join(COMMANDS))
-        print('      modules  查看 15 个模块的当前状态')
-        return 0 if args else 2
+    if not args or args[0] in ('-h','--help','help'):
+        print(f'地面工程工具入口 v{VERSION}\n用法：python workbench.py <命令> [原工具参数]\n'
+              '命令：modules, '+', '.join(COMMANDS)+'\n'
+              '示例：python workbench.py analyze samples.csv --output report.json\n'
+              '      python workbench.py channel samples.csv --expected-interval 0.01 --json report.json\n'
+              '      python workbench.py replay input.txt --out sessions\n'
+              '      python workbench.py drift baseline.json candidate.json --max-rel-change 0.05 --strict\n'
+              '      python workbench.py pipeline baseline.txt candidate.txt --out run-001 --strict\n'
+              '查看子工具帮助：python workbench.py requirements --help\n'
+              'record 打开桌面窗口，需要 Tk 和图形环境。')
+        return 0
     command=args.pop(0)
     if command=='modules':
-        for number, name, status, route in MODULES:
-            suffix=f' -> {route}' if route else ''
-            print(f'{number} {name}: {status}{suffix}')
+        if args:
+            print('modules 不接受其他参数',file=sys.stderr); return 2
+        print(json.dumps([dict(id=i,name=n,status=s,command=c or None) for i,n,s,c in MODULES],ensure_ascii=False,indent=2))
         return 0
-    target=COMMANDS.get(command)
-    if not target:
-        print(f'未知命令: {command}', file=sys.stderr)
-        print('可用命令: ' + ', '.join([*COMMANDS, 'modules']), file=sys.stderr)
-        return 2
-    return subprocess.call([sys.executable, str(Path(__file__).with_name(target)), *args])
+    if command not in COMMANDS:
+        print('未知命令；运行 python workbench.py --help 查看入口',file=sys.stderr); return 2
+    script=Path(__file__).resolve().parent/COMMANDS[command]
+    try:
+        # No shell, preserve arguments and working directory for local data paths.
+        return subprocess.run([sys.executable,str(script),*args],check=False).returncode
+    except OSError as e:
+        print(f'启动失败：{e}',file=sys.stderr); return 2
 
 
-if __name__=='__main__':
-    sys.exit(main())
+if __name__ == '__main__':
+    raise SystemExit(main())

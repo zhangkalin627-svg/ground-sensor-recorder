@@ -1,4 +1,4 @@
-"""Concurrent output-directory protection test for pipeline_report (v0.35.0)."""
+"""Concurrent output-directory protection tests for pipeline_report."""
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import tempfile
@@ -60,6 +60,37 @@ class PipelineOutputConcurrencyTests(unittest.TestCase):
             self.assertTrue((output / 'baseline.json').is_file())
             self.assertTrue((output / 'candidate.json').is_file())
             self.assertTrue((output / 'drift.json').is_file())
+
+    def test_different_output_paths_allow_concurrent_runs(self):
+        with tempfile.TemporaryDirectory() as d:
+            baseline = make_log(Path(d) / 'baseline.txt')
+            candidate = make_log(Path(d) / 'candidate.txt')
+            outputs = [Path(d) / 'run-a', Path(d) / 'run-b']
+            both_replays_started = threading.Barrier(2)
+            real_import_lines = pipeline_report.replay_session.import_lines
+
+            def synchronize_replay(source, out_dir):
+                both_replays_started.wait(timeout=15)
+                return real_import_lines(source, out_dir)
+
+            with patch('pipeline_report.replay_session.import_lines',
+                       side_effect=synchronize_replay):
+                with ThreadPoolExecutor(max_workers=2) as executor:
+                    futures = [
+                        executor.submit(
+                            pipeline_report.build_pipeline,
+                            baseline, candidate, output)
+                        for output in outputs
+                    ]
+                    results = [future.result(timeout=45) for future in futures]
+
+            for output, result in zip(outputs, results):
+                self.assertEqual(result[4]['status'], 'completed')
+                self.assertEqual(result[3], output / 'pipeline_manifest.json')
+                self.assertTrue((output / 'baseline.json').is_file())
+                self.assertTrue((output / 'candidate.json').is_file())
+                self.assertTrue((output / 'drift.json').is_file())
+                self.assertEqual(result[4]['exit_code'], 0)
 
 
 if __name__ == '__main__':

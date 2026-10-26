@@ -249,20 +249,28 @@ class PipelineCliTests(unittest.TestCase):
             baseline = make_log(Path(d) / 'baseline.txt')
             candidate = make_log(Path(d) / 'candidate.txt')
             output = Path(d) / 'partial-report-run'
+            real_write = pipeline_report._write_json_exclusive
             real_dump = json.dump
             calls = [0]
 
-            def fail_first_dump(value, handle, *args, **kwargs):
+            def fail_first_report_dump(value, handle, *args, **kwargs):
                 if calls[0] == 0:
                     calls[0] += 1
                     handle.write('{"partial":')
                     raise OSError('synthetic report write failure')
                 return real_dump(value, handle, *args, **kwargs)
 
-            with patch('pipeline_report.json.dump', side_effect=fail_first_dump):
+            def fail_baseline_report(value, path):
+                if Path(path).name == 'baseline.json':
+                    with patch('pipeline_report.json.dump', side_effect=fail_first_report_dump):
+                        return real_write(value, path)
+                return real_write(value, path)
+
+            with patch('pipeline_report._write_json_exclusive', side_effect=fail_baseline_report):
                 rc, _, err = run(pipeline_report.main, [baseline, candidate, '--out', output])
             self.assertEqual(rc, 1)
             self.assertIn('阶段 baseline_channel_report', err)
+            self.assertEqual(calls[0], 1)
             self.assertFalse((output / 'baseline.json').exists())
             manifest = json.loads((output / 'pipeline_manifest.json').read_text(encoding='utf-8'))
             self.assertEqual(manifest['status'], 'failed')

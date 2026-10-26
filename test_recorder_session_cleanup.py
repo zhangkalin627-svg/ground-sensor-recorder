@@ -1,4 +1,4 @@
-"""Session cleanup tests for recorder.SessionWriter and recorder.App.tick (v0.47.0).
+"""Session cleanup tests for recorder.SessionWriter and recorder.App.tick (v0.48.0).
 
 These tests use in-memory file objects and stand-ins; no Tk display is needed.
 Run: python3 -m unittest test_recorder_session_cleanup
@@ -207,6 +207,7 @@ class SessionCleanupTests(unittest.TestCase):
         data_file.fail_next_write = True
         app = object.__new__(App)
         app.mode = 'sim'
+        app.interrupted = False
         app.drop = Status(False)
         app.started = time.monotonic() - 1
         app.last_rx = None

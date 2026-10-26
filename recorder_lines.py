@@ -1,11 +1,11 @@
-"""Recorder window with one extra button: import a text line log (v0.21.0).
+"""Recorder window with one extra button: import a text line log (v0.28.0).
 
 Run:  python recorder_lines.py
 It is the 0.2.0 recorder window (recorder.App) plus a read-only import of a
 text line log through replay_session. The log is parsed, bad lines are listed
 in anomalies.csv, and the good samples replay in the chart. After an import the
-window keeps one status line with the bad line count (v0.21.0). No hardware is
-opened and nothing is written to any device. Needs a display (Tk).
+window keeps one status line with the bad line count. No hardware is opened and
+nothing is written to any device. Needs a display (Tk).
 """
 import time
 
@@ -18,12 +18,16 @@ class LineApp(App):
     def __init__(self, root):
         super().__init__(root)
         from tkinter import StringVar, ttk
-        root.title('地面传感器记录器 · v0.21.0（文本行导入）')
+        root.title('地面传感器记录器 · v0.28.0（文本行导入）')
         ttk.Button(root, text='导入文本行日志并回放（只读）',
                    command=self.import_lines).pack(anchor='w', padx=20, pady=2)
         self.lines_status = StringVar(value='最近一次导入：尚未导入')
         ttk.Label(root, textvariable=self.lines_status).pack(
             anchor='w', padx=20, pady=2)
+
+    def update_lines_status(self, result):
+        """Keep the latest import summary visible in the recorder window."""
+        self.lines_status.set(import_status.status_from_result(result))
 
     def import_lines(self):
         from tkinter import filedialog, messagebox
@@ -48,7 +52,7 @@ class LineApp(App):
         self.window.clear()
         self.index, self.started, self.mode = 0, time.monotonic(), 'replay'
         self.save_status.set('已保存：' + str(result.directory))
-        self.lines_status.set(import_status.status_from_result(result))
+        self.update_lines_status(result)
         self.draw()
         messagebox.showinfo('导入完成', replay_session.summary_text(result))
 

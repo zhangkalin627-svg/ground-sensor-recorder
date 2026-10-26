@@ -54,6 +54,18 @@ class AdapterTests(unittest.TestCase):
         self.assertTrue(a.finished)
         self.assertIsNone(a.read())
 
+    def test_drain_budget_counts_blank_and_bad_lines(self):
+        a = LineAdapter(['\n', 'not,a,sample', line(0)], DeviceInfo('d'))
+
+        self.assertEqual(drain(a, max_reads=2), [])
+        self.assertFalse(a.finished)
+        self.assertEqual(a.anomalies.by_kind, {'field_count': 1})
+        self.assertEqual([sample.t_s for sample in drain(a, max_reads=1)], [0.0])
+        self.assertFalse(a.finished)
+        self.assertEqual(drain(a, max_reads=1), [])
+        self.assertTrue(a.finished)
+        self.assertEqual(a.anomalies.total, 1)
+
     def test_adapter_has_no_write_path(self):
         for cls in (SensorAdapter, SimulatedAdapter, LineAdapter):
             for name in ('write', 'send', 'command', 'set_output'):

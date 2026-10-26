@@ -1,4 +1,4 @@
-# 地面实验工具 v0.52.0
+# 地面实验工具 v0.53.0
 
 一个逐步增加模块的通用地面实验与工程记录工具集。当前提供命令行工作台、模拟记录器、文本日志只读导入、离线分析与流水线工具，主要使用 Python 标准库。要求 Python 3.10+；桌面记录器需要 Tk 和图形环境。
 
@@ -43,20 +43,17 @@ python workbench.py pipeline baseline.txt candidate.txt --out run-001
 
 ## 测试与验证范围
 
-v0.52.0 修正 `window_test_preflight.py`：临时 Tk 窗口创建、隐藏成功但关闭失败时，预检现在返回不可用和关闭错误，避免把未能清理窗口的环境报告为可用。新增 `test_window_test_preflight.py` 覆盖关闭失败。
+v0.53.0 增加适配器边界回归测试：重复 CSV 表头恰好达到每次读取上限时，下一行留给后续读取；超出上限一行时，后续读取会继续跳过剩余表头并取到样本。另验证空行与坏行都会占用 `drain(max_reads)` 的读取预算。没有修改 `adapters.py` 生产逻辑。
 
-本版未运行新增测试或全套测试，提交说明标注“未测试”。在仓库根目录运行：
+本版新增测试、全套测试和 Tk 窗口均未运行，提交说明标注“未测试”。在仓库根目录运行：
 
 ```text
-python3 -m unittest test_window_test_preflight
-python3 window_test_preflight.py
-xvfb-run -a python3 window_test_preflight.py
-xvfb-run -a python3 -m unittest test_recorder_window
+python3 -m unittest test_adapter_repeated_headers test_adapters
 python3 -m unittest discover
 python workbench.py --help
 ```
 
-预检通过只说明 Tk 窗口可以初始化和销毁，不证明窗口功能测试通过。无 Tk 或 DISPLAY 时窗口测试会跳过，跳过不代表通过。单元测试不能替代真实测量数据、传感器、硬件在环或 Tk 真机验证。测试由管家云服务器或用户电脑运行。
+Tk 窗口测试可在 Xvfb 环境运行；无 Tk 或 DISPLAY 时跳过不代表通过。单元测试不能替代真实测量数据、传感器、硬件在环或 Tk 真机验证。测试由管家云服务器或用户电脑运行。
 
 ## 文档
 
@@ -78,4 +75,5 @@ python workbench.py --help
 - [v0.50.0 LineAdapter 读取边界测试说明](TOOLS_V0_50.md)
 - [v0.51.0 Tk 环境预检说明](TOOLS_V0_51.md)
 - [v0.52.0 Tk 预检关闭失败处理说明](TOOLS_V0_52.md)
+- [v0.53.0 适配器读取预算边界测试说明](TOOLS_V0_53.md)
 - 各版本功能和测试边界见仓库中的 `TOOLS_V0_*.md` 文件。

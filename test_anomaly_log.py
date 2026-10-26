@@ -1,4 +1,4 @@
-"""Bounded retention and category-count tests for AnomalyLog (v0.56.0)."""
+"""Bounded retention and category-count tests for AnomalyLog (v0.57.0)."""
 import csv
 import tempfile
 import unittest
@@ -46,6 +46,35 @@ class AnomalyLogBoundedRetentionTests(unittest.TestCase):
             rows[4][1:],
             ['truncated', '仅保留最近 3 条，共 5 条'],
         )
+
+    def test_zero_retention_keeps_counts_and_writes_truncation_summary(self):
+        log = AnomalyLog(limit=0)
+        log.add('field_count', 'wrong field count')
+        log.add('invalid', 'invalid sample')
+
+        self.assertEqual(list(log.entries), [])
+        self.assertEqual(log.total, 2)
+        self.assertEqual(log.by_kind, {'field_count': 1, 'invalid': 1})
+        with tempfile.TemporaryDirectory() as directory:
+            path = log.save(directory)
+            with path.open(encoding='utf-8-sig', newline='') as stream:
+                rows = list(csv.reader(stream))
+
+        self.assertEqual(rows[0], ['local_time', 'kind', 'detail'])
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(
+            rows[1][1:],
+            ['truncated', '仅保留最近 0 条，共 2 条'],
+        )
+
+    def test_detail_is_limited_to_200_characters(self):
+        log = AnomalyLog(limit=1)
+        detail = 'x' * 250
+
+        log.add('invalid', detail)
+
+        self.assertEqual(len(log.entries[0][2]), 200)
+        self.assertEqual(log.entries[0][2], detail[:200])
 
 
 if __name__ == '__main__':

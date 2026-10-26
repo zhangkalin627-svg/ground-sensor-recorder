@@ -1,6 +1,6 @@
 # 下次开发从这里开始
 
-当前 v0.56.0（未测试）。本版新增 `test_anomaly_log.py` 两项测试，覆盖 `AnomalyLog` 在超过保留上限后的多类别累计计数、最近异常条目及 `anomalies.csv` 截断摘要；没有修改 `adapters.py` 生产逻辑。
+当前 v0.57.0（未测试）。本版只扩展 `test_anomaly_log.py`：新增 `AnomalyLog(limit=0)` 的多类别计数与 CSV 截断摘要边界测试，以及异常详情超过 200 字符时的截断测试；没有修改 `adapters.py` 生产逻辑。
 
 未运行新增测试或全套测试。运行：
 

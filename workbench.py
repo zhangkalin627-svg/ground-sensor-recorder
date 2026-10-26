@@ -1,10 +1,10 @@
-"""Single command entry for the generic ground engineering tools, v0.53.0."""
+"""Single command entry for the generic ground engineering tools, v0.54.0."""
 import json
 from pathlib import Path
 import subprocess
 import sys
 
-VERSION = '0.53.0'
+VERSION = '0.54.0'
 COMMANDS={'record':'recorder.py','analyze':'analysis.py','requirements':'requirements.py',
           'issues':'issues.py','configuration':'configuration.py','documents':'documents_index.py','results':'test_results.py','report':'summary_report.py',
           'channel':'channel_report.py','replay':'replay_session.py','drift':'drift_report.py',

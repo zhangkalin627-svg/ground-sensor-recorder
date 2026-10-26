@@ -1,4 +1,5 @@
 """Regression coverage for bounded repeated-header reads in line adapters."""
+import itertools
 import unittest
 
 from adapters import (MAX_HEADER_SKIPS_PER_READ, DeviceInfo, LineAdapter, drain)
@@ -55,6 +56,16 @@ class RepeatedHeaderTests(unittest.TestCase):
         sample = adapter.read()
         self.assertEqual(sample.t_s, 0.0)
         self.assertEqual(lines.reads, MAX_HEADER_SKIPS_PER_READ + 2)
+        self.assertEqual(adapter.anomalies.total, 0)
+
+    def test_drain_with_unending_headers_is_bounded_per_tick(self):
+        header = ','.join(FIELDS)
+        lines = CountingLines(itertools.repeat(header))
+        adapter = LineAdapter(lines, DeviceInfo('fixture'))
+
+        self.assertEqual(drain(adapter, max_reads=2), [])
+        self.assertEqual(lines.reads, 2 * MAX_HEADER_SKIPS_PER_READ)
+        self.assertFalse(adapter.finished)
         self.assertEqual(adapter.anomalies.total, 0)
 
 

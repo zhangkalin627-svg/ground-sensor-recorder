@@ -1,11 +1,11 @@
 # 下次开发从这里开始
 
-当前 v0.53.0（未测试）。本版仅增加适配器边界回归测试并同步文档，没有改 `adapters.py` 生产逻辑：覆盖重复表头达到及超过单次跳过上限的情况，以及空行、坏行消耗 `drain(max_reads)` 预算的情况。
+当前 v0.54.0（未测试）。本版仅增加适配器边界回归测试并同步文档，没有改 `adapters.py` 生产逻辑：以持续重复 CSV 表头的输入验证 `drain(max_reads)` 在单次调用内保持有界，并且不会把未结束的输入标记为结束。
 
 未运行新增测试或全套测试。运行：
 
 ```text
-python3 -m unittest test_adapter_repeated_headers test_adapters
+python3 -m unittest test_adapter_repeated_headers
 python3 -m unittest discover
 python workbench.py --help
 xvfb-run -a python3 -m unittest test_recorder_window

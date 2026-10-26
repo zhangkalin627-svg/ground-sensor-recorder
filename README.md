@@ -1,4 +1,4 @@
-# 地面实验工具 v0.43.0
+# 地面实验工具 v0.43.1
 一个逐步增加模块的通用地面实验与工程记录工具集。当前提供命令行工作台、模拟记录器、文本日志只读导入、离线分析与流水线工具，主要使用 Python 标准库。要求 Python 3.10+；桌面记录器需要 Tk 和图形环境。
 本项目目前是记录和离线分析工具，不是经过飞行或硬件验证的火箭飞控系统。模拟数据不是实测数据；项目不会向传感器或设备发送控制输出。
 ## 快速开始
@@ -33,7 +33,7 @@ python workbench.py pipeline baseline.txt candidate.txt --out run-001
 | 15 只读状态展示 | 规划 |
 统一入口为 `workbench.py`，目前是命令行工作台；记录器窗口是独立的 Tk 界面，并非统一图形平台。
 ## 测试与验证范围
-v0.43.0 新增 `test_recorder_session_cleanup.py`，覆盖采集事件日志写入失败和会话文件关闭失败时的状态提示与会话引用清理。本版未测试。可运行：
+v0.43.0 新增 `test_recorder_session_cleanup.py`，覆盖采集事件日志写入失败和会话文件关闭失败时的状态提示与会话引用清理。回读发现 v0.43.0 的 `workbench.py` 缩进有误，本版 v0.43.1 已恢复正确结构并更新版本号；本版未测试。可运行：
 ```text
 python3 -m unittest test_recorder_session_cleanup
 python3 -m unittest discover
@@ -49,4 +49,5 @@ python workbench.py --help
 - [v0.41.0 首页与回放窗口测试说明](TOOLS_V0_41.md)
 - [v0.42.0 采集切换与文本回放测试说明](TOOLS_V0_42.md)
 - [v0.43.0 采集会话关闭异常测试说明](TOOLS_V0_43.md)
+- [v0.43.1 工作台结构修正说明](TOOLS_V0_43_1.md)
 - 各版本功能和测试边界见仓库中的 `TOOLS_V0_*.md` 文件。

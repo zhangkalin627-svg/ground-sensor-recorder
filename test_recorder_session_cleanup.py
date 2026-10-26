@@ -1,4 +1,4 @@
-"""Session cleanup tests for recorder.SessionWriter and recorder.App.tick (v0.44.0).
+"""Session cleanup tests for recorder.SessionWriter and recorder.App.tick (v0.45.0).
 
 These tests use in-memory file objects and stand-ins; no Tk display is needed.
 Run: python3 -m unittest test_recorder_session_cleanup
@@ -48,6 +48,13 @@ class SessionCleanupTests(unittest.TestCase):
         app.session = session
         app.save_status = Status()
         return app
+
+    def _session(self, base, data_file=None, events_file=None):
+        data_file = data_file or MemoryFile()
+        events_file = events_file or MemoryFile()
+        with patch.object(Path, 'open', side_effect=[data_file, events_file]):
+            session = SessionWriter(base)
+        return session, data_file, events_file
 
     def test_event_write_error_still_closes_and_clears_session(self):
         session = Mock()
@@ -125,6 +132,33 @@ class SessionCleanupTests(unittest.TestCase):
         self.assertTrue(events_file.closed)
         self.assertEqual(app.save_status.get(), 'sample write failed')
         app.root.after.assert_called_once_with(50, app.tick)
+
+    def test_real_event_log_write_error_still_closes_both_files(self):
+        data_file = MemoryFile()
+        events_file = MemoryFile()
+        with tempfile.TemporaryDirectory() as base:
+            session, data_file, events_file = self._session(base, data_file, events_file)
+        events_file.fail_next_write = True
+        app = self._app(session)
+
+        app.close_session('停止采集')
+
+        self.assertIsNone(app.session)
+        self.assertTrue(data_file.closed)
+        self.assertTrue(events_file.closed)
+        self.assertEqual(app.save_status.get(), '事件日志写入失败；请检查磁盘')
+
+    def test_successful_close_can_be_called_more_than_once(self):
+        with tempfile.TemporaryDirectory() as base:
+            session, data_file, events_file = self._session(base)
+
+        session.close()
+        session.close()
+
+        self.assertTrue(data_file.closed)
+        self.assertTrue(events_file.closed)
+        self.assertIsNone(session.data)
+        self.assertIsNone(session.events)
 
 
 if __name__ == '__main__':

@@ -1,4 +1,4 @@
-"""Tests for the one-command replay -> channel -> drift workflow (v0.26.0)."""
+"""Tests for the one-command replay -> channel -> drift workflow (v0.27.0)."""
 import contextlib
 import hashlib
 import io
@@ -49,7 +49,8 @@ class PipelineCliTests(unittest.TestCase):
             self.assertEqual(len(list((output / 'baseline_sessions').glob('*/samples.csv'))), 1)
             self.assertEqual(len(list((output / 'candidate_sessions').glob('*/samples.csv'))), 1)
             manifest = json.loads((output / 'pipeline_manifest.json').read_text(encoding='utf-8'))
-            self.assertEqual(manifest['pipeline_version'], '0.26.0')
+            self.assertEqual(manifest['pipeline_version'], '0.27.0')
+            self.assertEqual(manifest['status'], 'completed')
             self.assertEqual(manifest['inputs']['baseline']['sha256'],
                              hashlib.sha256(baseline.read_bytes()).hexdigest())
             self.assertEqual(manifest['inputs']['candidate']['size_bytes'], candidate.stat().st_size)
@@ -69,6 +70,7 @@ class PipelineCliTests(unittest.TestCase):
             self.assertEqual(json.loads((output / 'drift.json').read_text(encoding='utf-8'))
                              ['flagged_channels'], [])
             manifest = json.loads((output / 'pipeline_manifest.json').read_text(encoding='utf-8'))
+            self.assertEqual(manifest['status'], 'completed')
             self.assertEqual(manifest['exit_code'], 0)
 
     def test_existing_output_is_never_overwritten(self):
@@ -89,10 +91,51 @@ class PipelineCliTests(unittest.TestCase):
             baseline = make_log(Path(d) / 'baseline.txt')
             candidate = make_log(Path(d) / 'candidate.txt')
             output = Path(d) / 'invalid-run'
-            rc, _, _ = run(pipeline_report.main, [baseline, candidate, '--out', output,
-                                                  '--expected-interval', '0'])
+            rc, _, err = run(pipeline_report.main, [baseline, candidate, '--out', output,
+                                                    '--expected-interval', '0'])
             self.assertEqual(rc, 1)
+            self.assertIn('阶段 preflight', err)
             self.assertFalse(output.exists())
+
+    def test_candidate_replay_failure_records_stage_and_partial_outputs(self):
+        with tempfile.TemporaryDirectory() as d:
+            baseline = make_log(Path(d) / 'baseline.txt')
+            candidate = make_log(Path(d) / 'candidate.txt')
+            output = Path(d) / 'failed-run'
+            real_import = pipeline_report.replay_session.import_lines
+
+            def fail_candidate(source, out_dir):
+                if Path(source).name == candidate.name:
+                    raise ValueError('synthetic candidate failure')
+                return real_import(source, out_dir)
+
+            with patch('pipeline_report.replay_session.import_lines', side_effect=fail_candidate):
+                rc, _, err = run(pipeline_report.main, [baseline, candidate, '--out', output])
+            self.assertEqual(rc, 1)
+            self.assertIn('阶段 candidate_replay', err)
+            manifest = json.loads((output / 'pipeline_manifest.json').read_text(encoding='utf-8'))
+            self.assertEqual(manifest['status'], 'failed')
+            self.assertEqual(manifest['failure_stage'], 'candidate_replay')
+            self.assertEqual(manifest['error_type'], 'ValueError')
+            self.assertIn('baseline.json', manifest['partial_outputs'])
+            self.assertNotIn('candidate.json', manifest['partial_outputs'])
+            self.assertNotIn(str(candidate.resolve()), json.dumps(manifest))
+
+    def test_drift_failure_records_completed_reports(self):
+        with tempfile.TemporaryDirectory() as d:
+            baseline = make_log(Path(d) / 'baseline.txt')
+            candidate = make_log(Path(d) / 'candidate.txt', offset=1.0)
+            output = Path(d) / 'drift-failed'
+            with patch('pipeline_report.drift_report.compare', side_effect=RuntimeError('synthetic drift failure')):
+                rc, _, err = run(pipeline_report.main, [baseline, candidate, '--out', output])
+            self.assertEqual(rc, 1)
+            self.assertIn('阶段 drift_comparison', err)
+            manifest = json.loads((output / 'pipeline_manifest.json').read_text(encoding='utf-8'))
+            self.assertEqual(manifest['failure_stage'], 'drift_comparison')
+            self.assertEqual(manifest['error_type'], 'RuntimeError')
+            self.assertIn('baseline.json', manifest['partial_outputs'])
+            self.assertIn('candidate.json', manifest['partial_outputs'])
+            self.assertNotIn('drift.json', manifest['partial_outputs'])
 
     def test_workbench_routes_pipeline_arguments(self):
         args = ['baseline.txt', 'candidate.txt', '--out', 'run-001', '--strict']

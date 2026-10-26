@@ -1,4 +1,4 @@
-"""Single command entry for the generic ground engineering tools, v0.26.0."""
+"""Single command entry for the generic ground engineering tools, v0.27.0."""
 import json
 from pathlib import Path
 import subprocess
@@ -25,10 +25,11 @@ MODULES=[
     ('14','问题管理','第一代文本工具','issues'),
     ('15','只读状态展示','规划','')]
 
+
 def main(argv=None):
     args=list(sys.argv[1:] if argv is None else argv)
     if not args or args[0] in ('-h','--help','help'):
-        print('地面工程工具入口 v0.26.0\n用法：python workbench.py <命令> [原工具参数]\n'
+        print('地面工程工具入口 v0.27.0\n用法：python workbench.py <命令> [原工具参数]\n'
               '命令：modules, '+', '.join(COMMANDS)+'\n'
               '示例：python workbench.py analyze samples.csv --output report.json\n'
               '      python workbench.py channel samples.csv --expected-interval 0.01 --json report.json\n'
@@ -53,4 +54,6 @@ def main(argv=None):
     except OSError as e:
         print(f'启动失败：{e}',file=sys.stderr); return 2
 
-if __name__ == '__main__': raise SystemExit(main())
+
+if __name__ == '__main__':
+    raise SystemExit(main())
